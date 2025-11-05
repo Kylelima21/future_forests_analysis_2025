@@ -1,0 +1,348 @@
+---
+title: "FFCM_2025_tube"
+output:
+  html_document: default
+  word_document: default
+date: "2025-02-03"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+# Loading in packages
+#install.packages("readxl")
+#install.packages('tidyverse')
+#install.packages('dplyr')
+#install.packages('writexl')
+#install.packages('ggplots')
+#install.packages('forcats')
+library(readxl)
+library(tidyverse)
+library(dplyr)
+library(writexl)
+library(ggplot2)
+library(forcats)
+```
+
+```{r, echo=FALSE, warning = FALSE}
+master_wide <- read_excel("C:\\Users\\jattanasio\\Desktop\\R_related\\master_wide.xlsx")
+# Master length was made in the growth file
+master_length <- read_excel("C:\\Users\\jattanasio\\Desktop\\R_related\\master_length.xlsx")
+```
+
+Step 1: Look at the plants with tubes and pull out plants if their tubes came off 
+
+```{r, echo=FALSE, warning = FALSE, message=FALSE}
+tube_wide <- master_wide %>%
+  filter(Tube == "Y") %>%
+  select("Notes_fall2024", UniqueID)
+```
+
+> It seems like from 2019 to 2023 144 tubes were removed out of the initial 396 tubes;
+so 36%
+
+> - There are 26 suspicious tubes by Summer 2021.
+> - 28 by Fall 2021.
+> - 60 by Summer 2022.
+> - 82 by Fall 2022.
+> - 121 by Summer 2023
+> - 144 by Fall 2023
+
+Note: I didn't distinguish when the note said tube removed and tube fallen, because I assume the tube would have to be broken in some way for it to be removed. Also when the tube goes down even once I added it to this list. I tracked each UniqueID the first time a tube fell all the way through. Info contained in excel sheet.
+
+Note: The protocol says that there should have been 392 tubes planted, but there are
+more in actuality. 
+
+> Notes for Tubes
+
+> - Because there are so many faulty tubes, I am only looking at 2019 growth/Death
+> - This means I am not excluding Belfast because I am not looking at 2020 data
+> - Don't need to exclude seedlings w/ bad lengths because there were none in 2019
+> - I am going to exclude the lengths of dead seedlings, so will pull from master_length 
+> - Will pull from master_wide when looking at L/D
+
+
+
+Step 2: Grab the code to get the growth data
+
+```{r, echo=FALSE, warning = FALSE, message=FALSE}
+growth19 <- master_length %>%
+  dplyr::select(Length_summer2019, Length_fall2019, 
+                UniqueID, Site, Plot, Species, Tube) %>%
+  mutate(growth2019 = Length_fall2019 - Length_summer2019) %>%
+# Taking out the seedlings with faulty tubes 
+  filter(UniqueID != 250 & UniqueID != 288 & UniqueID != 682 & UniqueID != 455 &
+         UniqueID != 1017 & UniqueID != 1050 & UniqueID != 1055 & UniqueID != 500 &
+         UniqueID != 597) 
+```
+
+```{r, echo=FALSE, warning = FALSE, message=FALSE}
+ggplot(growth19, aes(x = Tube, y = growth2019)) +
+  geom_boxplot() +
+  facet_wrap(~Site) +
+  geom_hline(yintercept = 0) +
+  xlab("Tube Y/N") +
+  ylab("Growth (cm)") +
+  ggtitle("Growth in 2019 with and without Tubes")
+
+ggplot(growth19, aes(x = Tube, y = growth2019)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_hline(yintercept = 0) +
+   scale_y_continuous(limits = c(-30,40)) +
+  xlab("Tube Y/N") +
+  ylab("Growth (cm)") +
+  ggtitle("Growth in 2019 with and without Tubes")
+
+growth_tube_site <- growth19 %>%
+  group_by(Site, Species, Tube) %>%
+  summarize(mean_growth2019 = mean(growth2019, na.rm = TRUE), 
+             sd_growth2019 = sd(growth2019, na.rm = TRUE),
+             n = n()
+             )  
+
+growth_tube <- growth19 %>%
+  group_by(Tube) %>%
+  summarize(mean_growth2019 = mean(growth2019, na.rm = TRUE), 
+             n = n()
+             )  
+
+growth_tube_species <- growth19 %>%
+  group_by(Species, Tube) %>%
+  summarize(mean_growth2019 = mean(growth2019, na.rm = TRUE), 
+             n = n()
+             )  
+```  
+
+The tubes were initially placed to help protect from browse. I think they could have
+impacted the plants in other ways as well. My assumption would be that the tubes could
+create a bit of a heating chamber for the plants because of the plastic. I want to look at specifically
+some of the broad leaf southern plants tube vs no tube.
+
+Step 3: Look at southern broadleaf species
+
+```{r, echo=FALSE, warning = FALSE, message=FALSE}
+growth_choak_summary <- growth19 %>%
+  select(-c(Length_summer2019, Length_fall2019)) %>%
+  filter(Species == "ch.oak") %>%
+  group_by(Tube, Site) %>%
+  summarize(meanGrowth = mean(growth2019, na.rm = TRUE),
+            n = n())
+
+growth_choak <- growth19 %>%
+  filter(Species == "ch.oak") 
+
+growth_choak_model19 <- lm(growth_choak$growth2019 ~ growth_choak$Tube)
+summary(growth_choak_model19)
+
+# p-value is 0.01, so yes significant for chestnut oaks
+
+ggplot(growth_choak, aes(x = Tube, y = growth2019)) +
+  geom_boxplot() +
+  facet_wrap(~Site) +
+  geom_hline(yintercept = 0) +
+  labs(title = "Growth of chestnut oak with and without tubes", y = "Growth (cm)")
+
+growth_tulip_summary <- growth19 %>%
+  select(-c(Length_summer2019, Length_fall2019)) %>%
+  filter(Species == "tulip") %>%
+  group_by(Tube, Site) %>%
+  summarize(meanGrowth = mean(growth2019, na.rm = TRUE),
+            n = n())
+
+growth_tulip <- growth19 %>%
+  filter(Species == "tulip") 
+
+growth_tulip_model19 <- lm(growth_tulip$growth2019 ~ growth_tulip$Tube)
+summary(growth_tulip_model19)
+
+# p-value is 0.955, so not significant for tulips
+
+ggplot(growth_tulip, aes(x = Tube, y = growth2019)) +
+  geom_boxplot() +
+  facet_wrap(~Site) +
+  geom_hline(yintercept = 0) +
+  labs(title = "Growth of tulip poplar with and without tubes", y = "Growth (cm)")
+
+growth_sgum_summary <- growth19 %>%
+  select(-c(Length_summer2019, Length_fall2019)) %>%
+  filter(Species == "s.gum") %>%
+  group_by(Tube, Site) %>%
+  summarize(meanGrowth = mean(growth2019, na.rm = TRUE),
+            n = n())
+
+growth_sgum <- growth19 %>%
+  filter(Species == "s.gum") 
+
+growth_sgum_model19 <- lm(growth_sgum$growth2019 ~ growth_sgum$Tube)
+summary(growth_sgum_model19)
+# p-value is 1.081x10 -15, so yes significant for sweet gum
+
+ggplot(growth_sgum, aes(x = Tube, y = growth2019)) +
+  geom_boxplot() +
+  facet_wrap(~Site) +
+  geom_hline(yintercept = 0) +
+  labs(title = "Growth of sweet gum with and without tubes", y = "Growth (cm)")
+
+```
+
+Step 4: Run a linear model to see the effects on the tube on surviving trees?
+
+```{r, echo=FALSE, warning = FALSE, message=FALSE}
+#subset data to only include trees that survived
+growth_tube19 <- master_wide %>%
+   dplyr::select(ends_with("2019"), UniqueID, Tube, Site, Species) %>%
+   mutate(growth2019 = Length_fall2019 - Length_summer2019) %>%
+   filter(LiveDead_fall2019 == "L")
+
+growth_tube_model19 <- lm(growth_tube19$growth2019 ~ growth_tube19$Tube)
+summary(growth_tube_model19)
+# p-value is 7.98x10 -09 so is significant for overall growth!
+```
+
+> Overall take-aways from tubes and growth
+
+> - P-value for growth ~ tube is 7.98x10 -09 so is significant for overall growth!
+> - mean growth w/o tube is 2.80 and w/ tube is 7.99 (cm in one growing season)
+> - Then I wanted to look at the southern broad leaf species
+> - p-value for chestnut oaks is 0.01, so yes significant 
+> - mean growth for chestnut oaks w/o tube is 0.06 and w/ tube is 4.02 (cm in one growing season)
+> - p-value for tulips is 0.955, so not significant 
+> - mean growth for tulips w/o tube is 2.04 and w/ tube is 2.22 (cm in one growing season)
+> - p-value for sweet gum is 1.081x10 -15, so yes significant 
+> - mean growth for sweet gum w/o tube is 12.82 and w/ tube is 34.70 (cm in one growing season)
+
+Step 5: Look at how Tubes impact Alive or Dead
+
+```{r, echo=FALSE, warning = FALSE, message=FALSE}
+live19 <- master_wide %>%
+  dplyr::select(LiveDead_fall2019, UniqueID, Site, Plot, Species, Tube) %>%
+# Taking out the seedlings with faulty tubes 
+  filter(UniqueID != 250 & UniqueID != 288 & UniqueID != 682 & UniqueID != 455 &
+         UniqueID != 1017 & UniqueID != 1050 & UniqueID != 1055 & UniqueID != 500 &
+         UniqueID != 597) %>%
+# Cleaning column because it was cleaned in LiveDead not tidy
+  mutate(LiveDead_fall2019 = recode(LiveDead_fall2019, "D?" = "D")) %>%
+  mutate(LiveDead_fall2019 = replace_na(LiveDead_fall2019, "D"))
+
+ggplot(live19, aes(x = Species, fill = LiveDead_fall2019)) + 
+  geom_bar() +
+  facet_wrap(~Site) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(title = "Alive or Dead in 2019", x = "Species", y = "Number of Seedlings",fill = "Alive or Dead")
+
+ggplot(live19, aes(x = Species, fill = LiveDead_fall2019)) + 
+  geom_bar() +
+  facet_wrap(~Tube) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(title = "Alive or Dead in 2019", x = "Species", y = "Number of Seedlings",fill = "Alive or Dead")
+
+live19_num <- live19 %>%
+   mutate(LiveDead_fall2019 = recode(LiveDead_fall2019, "L" = 1, "D" = 0)) 
+
+# dependent variable ~ independent variable
+tube_model19 <- lm(live19_num$LiveDead_fall2019 ~ live19_num$Tube)
+summary(tube_model19)
+# p-value is 0.429, so not statistically significant
+```
+
+Maybe I could make pie charts of live vs dead w/ tube and w/o tube?
+So make live 1 and sum?
+
+
+```{r, echo=FALSE, warning = FALSE, message=FALSE}
+live19_num <- live19 %>%
+   mutate(LiveDead_fall2019 = recode(LiveDead_fall2019, "L" = 1, "D" = 0)) 
+
+live19_sum <- live19_num %>%
+  group_by(Site, Species, Tube) %>%
+  summarise(alive = sum(LiveDead_fall2019))
+# This isn't quite what I wanted
+
+nrow(live19_num)
+# 1509
+
+tube <- live19_num %>%
+  filter(Tube == "Y")
+nrow(tube)
+# 391 total tubes
+sum(tube$LiveDead_fall2019 == 1)
+# 340 live in tubes
+sum(tube$LiveDead_fall2019 == 0)
+# 51 dead in tubes
+
+340/391
+# 87% alive...
+
+notube <- live19_num %>%
+  filter(Tube == "N")
+nrow(notube)
+# 1118
+sum(notube$LiveDead_fall2019 == 1)
+# 954 live in tubes
+sum(notube$LiveDead_fall2019 == 0)
+# 164 dead in tubes
+
+954/1118
+# 85% alive...
+
+df_tube <- data.frame(value = c(340, 51),
+                      group = c("L", "D"))
+
+ggplot(df_tube, aes(x = "", y = value, fill = group)) +
+  geom_col() +
+  coord_polar(theta = "y") +
+  labs(title = "Percentage of live seedlings in tubes")
+
+df_notube <- data.frame(value = c(954, 164),
+                        group = c("L", "D"))
+
+ggplot(df_notube, aes(x = "", y = value, fill = group)) +
+  geom_col() +
+  coord_polar(theta = "y") +
+  labs(title = "Percentage of live seedlings not in tubes")
+
+```
+
+Overall the percentage of alive or dead w/ or w/o tubes doesn't seem to change
+Sweet gum seemed to have it's growth impacted by the tubes, so lets see if the
+tubes impacted mortality of sweet gum
+
+```{r, echo=FALSE, warning = FALSE, message=FALSE}
+sgum_tube <- live19_num %>%
+  filter(Tube == "Y" & Species == "s.gum")
+nrow(sgum_tube)
+# 46 total tubes
+sum(sgum_tube$LiveDead_fall2019 == 1)
+# 45 live in tubes
+sum(sgum_tube$LiveDead_fall2019 == 0)
+# 1 dead in tubes  
+
+sgum_notube <- live19_num %>%
+  filter(Tube == "N" & Species == "s.gum")
+nrow(sgum_notube)
+# 147
+sum(sgum_notube$LiveDead_fall2019 == 1)
+# 142 live not in tubes
+sum(sgum_notube$LiveDead_fall2019 == 0)
+# 5 dead not in tubes
+
+sgum <- live19_num %>%
+  filter(Species == "s.gum")
+
+sgum_linear <- lm(sgum$LiveDead_fall2019 ~ sgum$Tube)
+summary(sgum_linear)
+# nope
+```
+> Overall take-aways from tubes and live/dead
+
+> - P-value for live/dead ~ tube is 0.429 so not significant
+> - In tubes, 87% of seedlings lived through the season
+> - Not in tubes, 85% of seedlings lived through the season
+> - Tubes did not really impact whether or not the seedling died that first season
+
+
+
+
+

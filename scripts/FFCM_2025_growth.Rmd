@@ -1,0 +1,526 @@
+---
+title: "Growth"
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+date: "2025-02-18"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages, echo = FALSE, warning=FALSE, message=FALSE}
+# Loading in packages
+#install.packages("readxl")
+#install.packages('tidyverse')
+#install.packages('dplyr')
+#install.packages('writexl')
+#install.packages('ggplots')
+#install.packages('forcats')
+library(readxl)
+library(tidyverse)
+library(dplyr)
+library(writexl)
+library(ggplot2)
+library(forcats)
+```
+
+```{r master wide, echo=FALSE, warning = FALSE, message=FALSE}
+master_wide <- read_excel("C:\\Users\\jattanasio\\Desktop\\R_related\\master_wide.xlsx")
+```
+
+There are 200 seedlings where in the fall of 2019 they were dead but still had a length measured. I would like to make it so the length of them is NA in that visit.
+
+Therefore, I filtered them out the seedlings with the dead lengths, replaced their length with NA, and then combined them back with the original. Then I exported as an excel file called master_length.
+
+```{r master, echo=FALSE, warning = FALSE}
+# grabbing the seedlings with bad fall 2019 lengths and making that column NA
+dead19 <- master_wide %>%
+  filter(grepl("dead total length", Notes_fall2019) | 
+         grepl("dead. total length", Notes_fall2019) | 
+         grepl("dead? total length", Notes_fall2019) |
+         grepl("deal total length", Notes_fall2019) |
+# these two seedling had a note saying dead and were listed as D but still had a length
+         UniqueID == 940 | UniqueID == 945) %>%
+  mutate(Length_fall2019 = NA)
+
+# grabbing the good seedlings and separating them out
+alive19 <- master_wide %>%
+  filter(!grepl("dead total length", Notes_fall2019), 
+         !grepl("dead. total length", Notes_fall2019), 
+         !grepl("dead? total length", Notes_fall2019),
+         !grepl("deal total length", Notes_fall2019),
+         UniqueID != 940, UniqueID != 945) 
+master_length <- rbind(dead19, alive19)
+```
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE}
+# exporting the length to work in the tubes
+write_xlsx(master_length, 'C:\\Users\\jattanasio\\Desktop\\R_related\\master_length.xlsx')
+```
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE}
+master_length <- read_excel("C:\\Users\\jattanasio\\Desktop\\R_related\\master_length.xlsx")
+```
+
+Step 1: Look at the Growth of each species per year per site.
+
+Note: I separated Belfast from the rest of the sites because it was the only one not sampled in 2020.
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE}
+# Looking at growth while data is wide
+ length_wide <- master_length %>%
+  dplyr::select(starts_with("Length"), Region, UniqueID, Site, Plot, Species) %>%
+# The seedlings below have bad lengths, so I am just getting rid of them
+  filter(UniqueID != 1382 & UniqueID != 808 & UniqueID != 11 &
+           UniqueID != 1227 & Site != "Belfast") %>%
+  mutate(growth2019 = Length_fall2019 - Length_summer2019,
+         growth2020 = Length_fall2020 - Length_summer2020,
+         growth2021 = Length_fall2021 - Length_summer2021,
+         growth2022 = Length_fall2022 - Length_summer2022,
+         growth2023 = Length_fall2023 - Length_summer2023, 
+         growth2024 = Length_fall2024 - Length_summer2024)
+
+ ggplot(length_wide, aes(x = Species, y = growth2019)) +
+   geom_boxplot() +
+   facet_wrap(~Site) +
+   geom_hline(yintercept = 0) +
+   labs(title = "Growth in 2019", x = "Species", y = "Growth (cm)") +
+   theme(axis.text.x = element_text(angle = 90))
+ 
+  ggplot(length_wide, aes(x = Species, y = growth2020)) +
+   geom_boxplot() +
+   facet_wrap(~Site) +
+   geom_hline(yintercept = 0) +
+   labs(title = "Growth in 2020", x = "Species", y = "Growth (cm)") +
+   theme(axis.text.x = element_text(angle = 90))
+ 
+ ggplot(length_wide, aes(x = Species, y = growth2021)) +
+   geom_boxplot() +
+   facet_wrap(~Site) +
+   geom_hline(yintercept = 0) +
+   labs(title = "Growth in 2021", x = "Species", y = "Growth (cm)") +
+   theme(axis.text.x = element_text(angle = 90))
+ 
+  ggplot(length_wide, aes(x = Species, y = growth2022)) +
+   geom_boxplot() +
+   facet_wrap(~Site) +
+   geom_hline(yintercept = 0) +
+   labs(title = "Growth in 2022", x = "Species", y = "Growth (cm)") +
+   theme(axis.text.x = element_text(angle = 90))
+   
+  ggplot(length_wide, aes(x = Species, y = growth2023)) +
+    geom_boxplot() +
+    facet_wrap(~Site) +
+    geom_hline(yintercept = 0) +
+    labs(title = "Growth in 2023", x = "Species", y = "Growth (cm)") +
+    theme(axis.text.x = element_text(angle = 90))
+   
+  ggplot(length_wide, aes(x = Species, y = growth2024)) +
+    geom_boxplot() +
+    facet_wrap(~Site) +
+    geom_hline(yintercept = 0) +
+    labs(title = "Growth in 2024", x = "Species", y = "Growth (cm)") +
+    theme(axis.text.x = element_text(angle = 90))
+```
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE}
+length_wide_Belfast <- master_length %>%
+  dplyr::select(starts_with("Length"), Region, UniqueID, Site, Plot, Species) %>%
+# taking out the seedlings with bad lengths
+  filter(UniqueID != 1382 & UniqueID != 808 & UniqueID != 11 & UniqueID != 1227 & 
+         Site == "Belfast") %>%
+# took out the growth 2020 
+  mutate(growth2019 = Length_fall2019 - Length_summer2019,
+         growth2021 = Length_fall2021 - Length_summer2021,
+         growth2022 = Length_fall2022 - Length_summer2022,
+         growth2023 = Length_fall2023 - Length_summer2023, 
+         growth2024 = Length_fall2024 - Length_summer2024)
+ 
+ ggplot(length_wide_Belfast, aes(x = Species, y = growth2019)) +
+   geom_boxplot() +
+   facet_wrap(~Site) +
+   geom_hline(yintercept = 0) +
+   labs(title = "Growth in 2019", x = "Species", y = "Growth (cm)") +
+   theme(axis.text.x = element_text(angle = 90))
+  
+ ggplot(length_wide_Belfast, aes(x = Species, y = growth2021)) +
+   geom_boxplot() +
+   facet_wrap(~Site) +
+   geom_hline(yintercept = 0) +
+   labs(title = "Growth in 2021", x = "Species", y = "Growth (cm)") +
+   theme(axis.text.x = element_text(angle = 90))
+   
+ ggplot(length_wide_Belfast, aes(x = Species, y = growth2022)) +
+   geom_boxplot() +
+   facet_wrap(~Site) +
+   geom_hline(yintercept = 0) +
+   labs(title = "Growth in 2022", x = "Species", y = "Growth (cm)") +
+   theme(axis.text.x = element_text(angle = 90))
+    
+ ggplot(length_wide_Belfast, aes(x = Species, y = growth2023)) +
+   geom_boxplot() +
+   facet_wrap(~Site) +
+   geom_hline(yintercept = 0) +
+   labs(title = "Growth in 2023", x = "Species", y = "Growth (cm)") +
+   theme(axis.text.x = element_text(angle = 90))
+ 
+ ggplot(length_wide_Belfast, aes(x = Species, y = growth2024)) +
+   geom_boxplot() +
+   facet_wrap(~Site) +
+   geom_hline(yintercept = 0) +
+   labs(title = "Growth in 2024", x = "Species", y = "Growth (cm)") +
+   theme(axis.text.x = element_text(angle = 90))
+```
+
+Wanted to color code the species as red = southern and blue = northern.
+I also think it is important to make the distinction between how northern or how 
+southern a plant is so I included some more information in a document on the drive.
+For example, white oak is deemed as a southern plant, but Go Botany (from the 
+Native Plant Trust) believes it is common and native in this county. I know from
+experience it is rare on MDI, but it is something to keep in mind.
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE}
+ ggplot(length_wide, aes(x = Species, y = growth2024)) +
+  geom_boxplot(aes(fill = Region)) +
+  geom_hline(yintercept = 0) +
+  scale_fill_manual(values = c("#347C98","#FC600A")) +
+  labs(title = "Growth in 2024", x = "Species", y = "Growth (cm)", color = "Region") 
+
+ggplot(length_wide, aes(x = Species, y = growth2024)) +
+  geom_boxplot(aes(fill = Region)) +
+  facet_wrap(~Site) +
+  geom_hline(yintercept = 0) +
+  scale_fill_manual(values = c("#347C98","#FC600A")) +
+  labs(title = "Growth in 2024", x = "Species", y = "Growth (cm)", color = "Region") +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE}
+# Belfast
+ ggplot(length_wide_Belfast, aes(x = fct_reorder(Species, growth2024, .fun = median), y = growth2024)) +
+  geom_boxplot(aes(fill = Region)) +
+  geom_hline(yintercept = 0) +
+  scale_fill_manual(values = c("#347C98","#FC600A")) +
+  labs(title = "Growth in 2024", x = "Species", y = "Growth (cm)", color = "Region") +
+  coord_flip()
+```
+
+Now going to look at the data long to see if we can say anything on a year to year basis.
+
+Looking at mean growth per year, and still keeping Belfast separate
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE}
+# looking at long data for all sites but Belfast First
+growth_long <- length_wide %>%
+  dplyr::select(starts_with("growth"), Region, UniqueID, Site, Plot, Species) %>%
+  pivot_longer(
+    cols = starts_with("grow"),
+    names_to = "Year",
+    values_to = "Growth") %>%
+  mutate(Year = recode(Year, "growth2019" = "2019",
+                             "growth2020" = "2020",
+                             "growth2021" = "2021",
+                             "growth2022" = "2022",
+                             "growth2023" = "2023",
+                             "growth2024" = "2024")) 
+
+growth_species <- growth_long %>%
+  group_by(Species, Year) %>%
+  summarize(meanGrowth = mean(Growth, na.rm = TRUE),
+            n = n())
+
+ggplot(growth_species, aes(x = Year, y = meanGrowth, color = Species, group = Species)) +
+  geom_point() + 
+  geom_line(size = 0.75) +
+  scale_color_manual(values=c("#cb1201","#FC600A","#66B032","#603C14","#F3BC2E",
+                              "#B25600","#347C98","#8601AF")) +
+  labs(title = "Yearly Mean Growth", y = "Mean Growth (cm)")
+
+growth_site <- growth_long %>%
+  group_by(Species, Year, Site) %>%
+  summarize(meanGrowth = mean(Growth, na.rm = TRUE),
+            n = n())
+
+growth_region <- growth_long %>%
+  group_by(Region, Year) %>%
+  summarize(meanGrowth = mean(Growth, na.rm = TRUE),
+            n = n()) 
+
+ggplot(growth_site, aes(x = Year, y = meanGrowth, color = Species, group = Species)) +
+  geom_point() + 
+  geom_line() + 
+  facet_wrap(~Site) +
+  scale_color_manual(values=c("#cb1201","#FC600A","#66B032","#603C14","#F3BC2E",
+                              "#B25600","#347C98","#8601AF")) +
+  labs(title = "Yearly Mean Growth", y = "Mean Growth (cm)")
+
+# Looking at Belfast
+growth_long_Belfast <- length_wide_Belfast %>%
+  dplyr::select(starts_with("growth"), Region, UniqueID, Site, Plot, Species) %>%
+  pivot_longer(
+    cols = starts_with("grow"),
+    names_to = "Year",
+    values_to = "Growth") %>%
+  mutate(Year = recode(Year, "growth2019" = "2019",
+                             "growth2021" = "2021",
+                             "growth2022" = "2022",
+                             "growth2023" = "2023",
+                             "growth2024" = "2024")) 
+
+growth_species_Belfast <- growth_long_Belfast %>%
+  group_by(Species, Year) %>%
+  summarize(meanGrowth = mean(Growth, na.rm = TRUE),
+            n = n())
+
+ggplot(growth_species_Belfast, aes(x = Year, y = meanGrowth, color = Species, group = Species)) +
+  geom_point() + 
+  geom_line(size = 0.75) +
+  scale_color_manual(values=c("#cb1201","#FC600A","#66B032","#603C14","#F3BC2E",
+                              "#B25600","#347C98","#8601AF")) +
+  labs(title = "Yearly Mean Growth in Belfast", y = "Mean Growth (cm)")
+```
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE}
+# next I am looking at the growth with Belfast included
+allsites <- master_length %>%
+  dplyr::select(starts_with("Length"), Region, UniqueID, Site, Plot, Species) %>%
+# The seedlings below have bad lengths, so I am just getting rid of them
+  filter(UniqueID != 1382 & UniqueID != 808 & UniqueID != 11 & UniqueID != 1227) %>%
+  mutate(growth2019 = Length_fall2019 - Length_summer2019,
+         growth2020 = Length_fall2020 - Length_summer2020,
+         growth2021 = Length_fall2021 - Length_summer2021,
+         growth2022 = Length_fall2022 - Length_summer2022,
+         growth2023 = Length_fall2023 - Length_summer2023, 
+         growth2024 = Length_fall2024 - Length_summer2024)
+
+allsites_long <- allsites %>%
+  dplyr::select(starts_with("growth"), Region, UniqueID, Site, Plot, Species) %>%
+  pivot_longer(
+    cols = starts_with("grow"),
+    names_to = "Year",
+    values_to = "Growth") %>%
+  mutate(Year = recode(Year, "growth2019" = "2019",
+                             "growth2020" = "2020",
+                             "growth2021" = "2021",
+                             "growth2022" = "2022",
+                             "growth2023" = "2023",
+                             "growth2024" = "2024")) 
+
+allsites_species <- allsites_long %>%
+  group_by(Species, Year) %>%
+  summarize(meanGrowth = mean(Growth, na.rm = TRUE),
+            n = n())
+allsites_site <- allsites_long %>%
+  group_by(Species, Year, Site) %>%
+  summarize(meanGrowth = mean(Growth, na.rm = TRUE),
+            n = n())
+# This includes 2020, so I don't know if that is impacting the data
+allsites_site2 <- allsites_long %>%
+  group_by(Site) %>%
+  summarise(meanGrowth = mean(Growth, na.rm = TRUE),
+            n = n())
+# Going to do it where 2020 is excluded
+allsites_site3 <- allsites_long %>%
+  filter(Year != 2020) %>%
+  group_by(Site) %>%
+  summarise(meanGrowth = mean(Growth, na.rm = TRUE),
+            n = n()) 
+
+allsites_region <- allsites_long %>%
+  group_by(Region, Year) %>%
+  summarize(meanGrowth = mean(Growth, na.rm = TRUE),
+            n = n())
+# curious about the difference in growth between northern plants and southern plants
+ggplot(allsites_region, aes(x = Year, y = meanGrowth, color = Region, group = Region)) +
+  geom_point() + 
+  geom_line(size = 0.75) +
+  scale_color_manual(values = c("#347C98","#FC600A")) +
+  labs(title = "Yearly Mean Growth", y = "Mean Growth (cm)")
+
+# want to see what species have the most growth
+species_grow <- allsites_long %>%
+  group_by(Species) %>%
+  summarize(meanGrowth = mean(Growth, na.rm = TRUE),
+            n = n())
+# red cedar really surprised me...
+```
+
+What happened in 2023? Why was it such a bad growing season? It seems like Surry had the worst of it...
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE}
+# pulling out Surry to see if it's an error that 2023 was so bad
+surry_long <- length_wide %>%
+  dplyr::select(starts_with("growth"), Region, UniqueID, Site, Plot, Species) %>%
+  filter(Site == "Surry") %>%
+  pivot_longer(
+    cols = starts_with("grow"),
+    names_to = "Year",
+    values_to = "Growth") %>%
+  mutate(Year = recode(Year, "growth2019" = "2019",
+                             "growth2020" = "2020",
+                             "growth2021" = "2021",
+                             "growth2022" = "2022",
+                             "growth2023" = "2023",
+                             "growth2024" = "2024")) 
+
+growth_species_Surry <- surry_long %>%
+  group_by(Species, Year) %>%
+  summarize(meanGrowth = mean(Growth, na.rm = TRUE),
+            n = n())
+
+ggplot(growth_species_Surry, aes(x = Year, y = meanGrowth, color = Species, group = Species)) +
+  geom_point() + 
+  geom_line() +
+  labs(title = "Yearly Mean Growth in Surry", y = "Mean Growth (cm)")
+
+surry_length <- length_wide %>%
+  dplyr::select(Length_fall2022, Length_summer2023, Length_fall2023, Region, UniqueID, Site, Species) %>%
+  pivot_longer(
+    cols = starts_with("Length"),
+    names_to = "Visit",
+    values_to = "Length") %>%
+  group_by(Species, Visit) %>%
+  summarise(meanLength = mean(Length, na.rm = TRUE))
+
+ggplot(surry_length, aes(x = factor(Visit, level = c('Length_fall2022', 'Length_summer2023', 'Length_fall2023')), 
+                          y = meanLength, color = Species, group = Species)) +
+  geom_point() + 
+  geom_line() +
+  labs(title = "Why is 2023 not growing as much", x = "Visit") 
+
+draft_length <- length_wide %>%
+  dplyr::select(Length_fall2022, Length_summer2023, Length_fall2023, Region, UniqueID, Site, Species) %>%
+  pivot_longer(
+    cols = starts_with("Length"),
+    names_to = "Visit",
+    values_to = "Length") %>%
+  group_by(Species, Visit, Site) %>%
+  summarise(meanLength = mean(Length, na.rm = TRUE))
+
+ggplot(draft_length, aes(x = factor(Visit, level = c('Length_fall2022', 'Length_summer2023', 'Length_fall2023')), 
+                          y = meanLength, color = Species, group = Species)) +
+  geom_point() + 
+  geom_line() +
+  labs(title = "Why is 2023 not growing as much", x = "Visit") +
+  facet_wrap(~Site)
+```
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE}
+# looking to see if northern or southern plants grow more
+#region_linear <- lm(combo3$meanGrowth ~ combo3$Region)
+#summary(region_linear)
+
+# looking to see if there is a difference between Sites
+#site_linear <- lm(combo2$meanGrowth ~ combo2$Site)
+#summary(site_linear)
+```
+
+> Overall take-aways from growth
+
+> - P-value for mean growth ~ region is 0.8117 so not significant
+> - P-value for mean growth ~ site is 0.02221 so is significant 
+> - I exported some growth means
+> - Species mean growth from highest to lowest: s.gum, w.pine, tulip, r.cedar, w.spruce, ch.oak, w.oak, r.oak
+> - What happened in Surry in 2023, the growth is way down?
+> - I find it surprising that red cedar has a couple of years where it grew a lot
+
+
+## __________________________________________________________________________ ##
+
+Going to look at relative growth. so log(fall length/summer length) aka final length/initial length
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE}
+rel_length_wide <- length_wide %>%
+   mutate(rgr2019 = log(Length_fall2019/Length_summer2019)) %>%
+  mutate(rgr2020 = log(Length_fall2020/Length_summer2020)) %>%
+   mutate(rgr2021 = log(Length_fall2021/Length_summer2021)) %>%
+   mutate(rgr2022 = log(Length_fall2022/Length_summer2022)) %>%
+   mutate(rgr2023 = log(Length_fall2023/Length_summer2023)) %>%
+   mutate(rgr2024 = log(Length_fall2024/Length_summer2024)) 
+
+ ggplot(rel_length_wide, aes(x = Species, y = rgr2024)) +
+   geom_boxplot() +
+   facet_wrap(~Site) +
+   geom_hline(yintercept = 0) +
+   labs(title = "Relative Growth in 2024", x = "Species", y = "Relative Growth (cm)")
+
+```
+
+What is up with sweet gum in Schoodic?
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE}
+rgr_long <- rel_length_wide %>%
+  select(starts_with("rgr"), UniqueID, Site, Plot, Species) %>%
+  pivot_longer(
+    cols = starts_with("rgr"),
+    names_to = "Year",
+    values_to = "RGR") %>%
+  mutate(Year = recode(Year, "growth2019" = "2019", 
+                             "growth2020" = "2020",
+                             "growth2021" = "2021",
+                             "growth2022" = "2022",
+                             "growth2023" = "2023",
+                             "growth2024" = "2024")) %>%
+  # going to remove the two with suspicious lengths
+  filter(UniqueID != 808 & UniqueID != 1382)
+
+ggplot(rgr_long, aes(x = Year, y = RGR, color = Species)) +
+  geom_point()
+
+rgr_summary <- rgr_long %>%
+  group_by(Species) %>%
+  summarize(meanRGR = mean(RGR, na.rm = TRUE),
+            n = n())
+
+#ggplot(rgr_summary, aes(x = Year, y = meanRGR, color = Species, group = Species)) +
+#  geom_point() + geom_line()
+
+```
+
+> Relative Plant Growth Notes
+
+> - Expresses growth in terms of a rate increase in size per unit of size
+> - Normally, relative growth rate deals with total dry weight per plant
+> - Significance: indicates the proportionate growth of plant independent of their size
+> - (lnW2 - lnW1)/(t2 - t1)
+> - Translated: log(final size - initial size)/final time - initial time
+
+Looking at growth stats
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE}
+growth_stats <- master_length %>%
+  dplyr::select(!ends_with("2020")) %>%
+  mutate(growth2019 = Length_fall2019 - Length_summer2019,
+         growth2021 = Length_fall2021 - Length_summer2021,
+         growth2022 = Length_fall2022 - Length_summer2022,
+         growth2023 = Length_fall2023 - Length_summer2023,
+         growth2024 = Length_fall2024 - Length_summer2024) %>%
+   group_by(Species, Site) %>%
+   summarize(mean_growth2019 = mean(growth2019, na.rm = TRUE), 
+             sd_growth2019 = sd(growth2019, na.rm = TRUE),
+             mean_growth2021 = mean(growth2021, na.rm = TRUE), 
+             sd_growth2021 = sd(growth2021, na.rm = TRUE),
+             mean_growth2022 = mean(growth2022, na.rm = TRUE), 
+             sd_growth2022 = sd(growth2022, na.rm = TRUE),
+             mean_growth2023 = mean(growth2023, na.rm = TRUE), 
+             sd_growth2023 = sd(growth2023, na.rm = TRUE),
+             mean_growth2024 = mean(growth2024, na.rm = TRUE), 
+             sd_growth2024 = sd(growth2024, na.rm = TRUE),
+             n = n()
+             )
+```
+
+Looking at the 2019 Analysis
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE}
+#Comparing growth for the four sites
+#siteGrowthComp<-lm(FFCM_master$Growth~FFCM_master$site)
+#summary(siteGrowthComp)
+
+SiteGrowth <- lm(growth_long$Growth ~ growth_long$Site)
+summary(SiteGrowth)
+```
+

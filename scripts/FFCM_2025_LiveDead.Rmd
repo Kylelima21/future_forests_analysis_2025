@@ -1,0 +1,325 @@
+---
+title: "FFCM_2025_LiveDead"
+output:
+  word_document: default
+  html_document: default
+date: "2025-02-18"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages, echo = FALSE, warning=FALSE, message=FALSE}
+# Loading in packages
+#install.packages("readxl")
+#install.packages('tidyverse')
+#install.packages('dplyr')
+#install.packages('writexl')
+#install.packages('ggplots')
+#install.packages('forcats')
+library(readxl)
+library(tidyverse)
+library(dplyr)
+library(writexl)
+library(ggplot2)
+library(forcats)
+```
+
+```{r master, echo=FALSE, warning = FALSE}
+master_wide <- read_excel("C:\\Users\\jattanasio\\Desktop\\R_related\\master_wide.xlsx")
+```
+
+Step 1: Clean LiveDead Columns; there are more than just L and D. Make data long, fix, then make it wide.
+Note: I am also splitting Belfast from the other Sites because it does not have 2020 data.
+Note: Made DNF -> D because we do not have data for that visit for those seedlings.
+
+```{r, echo=FALSE, warning = FALSE, message=FALSE}
+# Pulling all the sites but Belfast
+LiveDead_long <- master_wide %>%
+# Adding a LiveDead column for summer2019 so I can graph the different starting numbers of spp
+  mutate(LiveDead_summer2019 = "L", .before = Length_fall2019) %>%
+  select(starts_with("Live"), Region, UniqueID, Site, Plot, Cell, Species) %>%
+  filter(Site != "Belfast") %>%
+  pivot_longer(
+    cols = starts_with("Live"),
+    names_to = "Visit",
+    values_to = "LiveDead")
+
+LiveDead_long <- LiveDead_long %>%
+  mutate(LiveDead = recode(LiveDead, "d" = "D", "D?" = "D", "l" = "L", "L*" = "L",
+                           "L." = "L", ".L" = "L", "dnf" = "D", "Dnf" = "D", 
+                           "DNF" = "D", "NF" = "D", "not found" = "D", "Y" = "L",
+                           "R" = "D", "F" = "D", "c" = "D", "-" = "D", "ad" = "D")) %>%
+  mutate(LiveDead = replace_na(LiveDead, "D"))
+# I can't just recode the rows with the N value because on is live and one is dead
+LiveDead_long$LiveDead[LiveDead_long$UniqueID == 246] <- "D"  #MDI
+```
+
+```{r, echo=FALSE, warning = FALSE, message=FALSE}
+# repeating this but for Belfast
+LiveDead_long_Belfast <- master_wide %>%
+  select(!ends_with("2020")) %>%
+  mutate(LiveDead_summer2019 = "L", .before = Length_fall2019) %>%
+  select(starts_with("Live"), Region, UniqueID, Site, Plot, Cell, Species) %>%
+  filter(Site == "Belfast") %>%
+  pivot_longer(
+    cols = starts_with("Live"),
+    names_to = "Visit",
+    values_to = "LiveDead") 
+
+LiveDead_long_Belfast <- LiveDead_long_Belfast %>%
+  mutate(LiveDead = recode(LiveDead, "d" = "D", "D?" = "D", "l" = "L", "L*" = "L",
+                           "L." = "L", ".L" = "L", "dnf" = "D", "Dnf" = "D", 
+                           "DNF" = "D", "NF" = "D", "not found" = "D", "Y" = "L",
+                           "R" = "D", "F" = "D", "c" = "D", "-" = "D", "ad" = "D")) %>%
+  mutate(LiveDead = replace_na(LiveDead, "D"))
+# I can't just recode the rows with the N value because on is live and one is dead
+LiveDead_long_Belfast$LiveDead[LiveDead_long_Belfast$UniqueID == 1016] <- "L" #Belfast
+```
+
+So there are some assumptions I have made while cleaning up this column.
+- Decided to call any that were "did not find" dead because no data was collected for the seedling 
+- The ones with weird letters entered (for example: ad, -, c) I looked into the specific seedling's history and made my best decision 
+
+Making the LiveDead data wide again, and re-graphing
+
+```{r, echo=FALSE, warning = FALSE, message=FALSE}
+LiveDead_wide <- LiveDead_long %>%
+  pivot_wider(names_from = Visit, values_from = LiveDead) %>%
+  mutate_at(c(6:17), funs(replace_na(., "D")))
+
+ggplot(LiveDead_wide, aes(x = Species, fill = LiveDead_fall2024)) + 
+  geom_bar() +
+  facet_wrap(~Site) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(title = "Alive or Dead in 2024", x = "Species", y = "Number of Seedlings",fill = "Alive or Dead")
+```
+
+```{r, echo=FALSE, warning = FALSE, message=FALSE}
+# repeating with Belfast data
+LiveDead_wide_Belfast <- LiveDead_long_Belfast %>%
+  pivot_wider(names_from = Visit, values_from = LiveDead) %>%
+  mutate_at(c(6:15), funs(replace_na(., "D")))
+
+ggplot(LiveDead_wide_Belfast, aes(x = Species, fill = LiveDead_fall2024)) + 
+  geom_bar() +
+  facet_wrap(~Site) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(title = "Alive or Dead in 2024", x = "Species", y = "Number of Seedlings",fill = "Alive or Dead")
+```
+
+Making Live Dead 1 and 0, and then graphing per visit and species
+
+```{r, echo=FALSE, warning = FALSE, message=FALSE}
+LiveDead_long_num <- LiveDead_long %>%
+   mutate(LiveDead = recode(LiveDead, "L" = 1, "D" = 0))
+
+LiveDead_summary <- LiveDead_long_num %>%
+  mutate_at('LiveDead', as.numeric) %>%
+  group_by(Species, Visit) %>%
+  summarize(sum = sum(LiveDead))
+
+# x-axis wasn't graphing in correct order, so I fixed it
+ggplot(LiveDead_summary, aes(x = factor(Visit, level = c('LiveDead_summer2019', 'LiveDead_fall2019',
+                                                         'LiveDead_summer2020', 'LiveDead_fall2020',
+                                                         'LiveDead_summer2021', 'LiveDead_fall2021',
+                                                         'LiveDead_summer2022', 'LiveDead_fall2022',
+                                                         'LiveDead_summer2023', 'LiveDead_fall2023',
+                                                         'LiveDead_summer2024', 'LiveDead_fall2024')), 
+                             y = sum, color = Species, group = Species)) +
+  geom_point() + 
+  geom_line(size = 0.75) +
+  scale_x_discrete(labels = c('Summer 2019', 'Fall 2019', 'Summer2020', 'Fall 2020', 
+                              'Summer2021', 'Fall 2021', 'Summer 2022', 'Fall 2022', 
+                              'Summer 2023','Fall 2023', 'Summer 2024', 'Fall 2024')) +
+  # northern plants are r. oak (3), w.pine(7), w.spruce(8)
+  scale_color_manual(values=c("#cb1201","#FC600A","#66B032","#603C14","#F3BC2E",
+                              "#B25600","#347C98","#8601AF")) +
+  labs(title = "Mortality of Seedlings", x = "Visit", y = "Number of Living Seedlings") +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+```{r, echo=FALSE, warning = FALSE, message=FALSE}
+# repeating with 2020 data
+LiveDead_long_num_Belfast <- LiveDead_long_Belfast %>%
+   mutate(LiveDead = recode(LiveDead, "L" = 1, "D" = 0)) 
+
+LiveDead_summary_Belfast <- LiveDead_long_num_Belfast %>%
+  mutate_at('LiveDead', as.numeric, na.rm = TRUE) %>%
+  group_by(Species, Visit) %>%
+  summarize(sum = sum(LiveDead))
+
+ggplot(LiveDead_summary_Belfast, aes(x = factor(Visit, level = c('LiveDead_summer2019', 'LiveDead_fall2019',
+                                                             'LiveDead_summer2021', 'LiveDead_fall2021',
+                                                             'LiveDead_summer2022', 'LiveDead_fall2022',
+                                                             'LiveDead_summer2023', 'LiveDead_fall2023',
+                                                             'LiveDead_summer2024', 'LiveDead_fall2024')), 
+                             y = sum, color = Species, group = Species)) +
+  geom_point() + geom_line() +
+  scale_x_discrete(labels = c('Summer 2019', 'Fall 2019', 'Summer2021', 'Fall 2021', 
+                              'Summer 2022', 'Fall 2022', 'Summer 2023','Fall 2023', 
+                              'Summer 2024', 'Fall 2024')) +
+  # northern plants are r. oak (3), w.pine(7), w.spruce(8)
+  scale_color_manual(values=c("#ff99c2","#ff3385","#6699ff","#e6005c","#b30047",
+                              "#660029","#0055ff","#003399")) +
+  labs(title = "Mortality of Seedlings in Belfast", x = "Visit", y = "Number of Living Seedlings") +
+  theme(axis.text.x = element_text(angle = 90))
+
+LiveDead_region_Belfast <- LiveDead_long_num_Belfast %>%
+  mutate_at('LiveDead', as.numeric, na.rm = TRUE) %>%
+  group_by(Region, Visit) %>%
+  summarize(sum = sum(LiveDead))
+
+ggplot(LiveDead_region_Belfast, aes(x = factor(Visit, level = c('LiveDead_summer2019', 'LiveDead_fall2019',
+                                                             'LiveDead_summer2021', 'LiveDead_fall2021',
+                                                             'LiveDead_summer2022', 'LiveDead_fall2022',
+                                                             'LiveDead_summer2023', 'LiveDead_fall2023',
+                                                             'LiveDead_summer2024', 'LiveDead_fall2024')), 
+                             y = sum, color = Region, group = Region)) +
+  geom_point() + geom_line(size = 0.75) +
+  scale_x_discrete(labels = c('Summer 2019', 'Fall 2019', 'Summer2021', 'Fall 2021', 
+                              'Summer 2022', 'Fall 2022', 'Summer 2023','Fall 2023', 
+                              'Summer 2024', 'Fall 2024')) +
+  scale_color_manual(values = c("#347C98","#FC600A")) +
+  labs(title = "Mortality of Seedlings in Belfast", x = "Visit", y = "Number of Living Seedlings") +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+Study Parameters: 50 saplings of each species per site,400 total saplings per site, 8 spps, 4 sites
+So theoretically, 50 saplings per site and 4 sites, start off with 200 saplings of each species.
+But some weren't planted, and I accounted for that in by graphing the initial number summer 2019
+
+```{r, echo=FALSE, warning = FALSE, message=FALSE}
+LiveDead_summary_site <- LiveDead_long_num %>%
+  mutate_at('LiveDead', as.numeric) %>%
+  group_by(Species, Visit, Site) %>%
+  summarize(sum = sum(LiveDead))
+
+ggplot(LiveDead_summary_site, aes(x = factor(Visit, level = c('LiveDead_summer2019', 'LiveDead_fall2019',
+                                                              'LiveDead_summer2020', 'LiveDead_fall2020',
+                                                              'LiveDead_summer2021', 'LiveDead_fall2021',
+                                                              'LiveDead_summer2022', 'LiveDead_fall2022',
+                                                              'LiveDead_summer2023', 'LiveDead_fall2023',
+                                                              'LiveDead_summer2024', 'LiveDead_fall2024')), 
+                             y = sum, color = Species, group = Species)) +
+  geom_point() + geom_line() +
+  facet_wrap(~Site) +
+  scale_x_discrete(labels = c('Summer 2019', 'Fall 2019', 'Summer 2020', 'Fall 2020',
+                              'Summer2021', 'Fall 2021','Summer 2022', 'Fall 2022', 
+                              'Summer 2023','Fall 2023','Summer 2024', 'Fall 2024')) +
+  # northern plants are r. oak (3), w.pine(7), w.spruce(8)
+  scale_color_manual(values=c("#ff99c2","#ff3385","#6699ff","#e6005c","#b30047",
+                              "#660029","#0055ff","#003399")) +
+  labs(title = "Mortality of Seedlings", x = "Visit", y = "Number of Living Seedlings",
+       caption = "Pinks indicate southern spp and blues indicate northern spp") +
+  theme(axis.text.x = element_text(angle = 90)) 
+
+LiveDead_summary_region <- LiveDead_long_num %>%
+  mutate_at('LiveDead', as.numeric) %>%
+  group_by(Region, Visit, Site) %>%
+  summarize(sum = sum(LiveDead))
+
+ggplot(LiveDead_summary_region, aes(x = factor(Visit, level = c('LiveDead_summer2019', 'LiveDead_fall2019',
+                                                              'LiveDead_summer2020', 'LiveDead_fall2020',
+                                                              'LiveDead_summer2021', 'LiveDead_fall2021',
+                                                              'LiveDead_summer2022', 'LiveDead_fall2022',
+                                                              'LiveDead_summer2023', 'LiveDead_fall2023',
+                                                              'LiveDead_summer2024', 'LiveDead_fall2024')), 
+                             y = sum, color = Region, group = Region)) +
+  geom_point() + geom_line(size = 0.75) +
+  facet_wrap(~Site) +
+  scale_x_discrete(labels = c('Summer 2019', 'Fall 2019', 'Summer 2020', 'Fall 2020',
+                              'Summer2021', 'Fall 2021','Summer 2022', 'Fall 2022', 
+                              'Summer 2023','Fall 2023','Summer 2024', 'Fall 2024')) +
+  labs(title = "Mortality of Seedlings", x = "Visit", y = "Number of Living Seedlings") +
+  scale_color_manual(values = c("#347C98","#FC600A")) +
+  theme(axis.text.x = element_text(angle = 90)) 
+```
+
+```{r, echo=FALSE, warning = FALSE, message=FALSE}
+# Percentage southern vs northern living through the first winter (so Belfast excluded)
+first_winter <- LiveDead_wide %>%
+  filter(LiveDead_fall2019 == "L") %>%
+  group_by(Region, LiveDead_fall2019, LiveDead_summer2020) %>%
+  summarise(n = n())
+
+# How many nothern spp were alive fall19: 341
+# How many northern spp were alive summer2020: 257 (84 died)
+# 24.6% or northern spp died the first winter
+# How many southern spp were alive fall19: 614
+# How many southern spp were alive summer2020: 453 (161 died)
+# 26.2% of southern spp died the first winter
+# This does ignore the spp that were dead in fall19 and came back to life summer2020
+```
+
+```{r, echo=FALSE, warning = FALSE, message=FALSE}
+# Doing percent live per site (survival)
+# Already have the number planted per Site/Region in Tidy
+site_live <- LiveDead_wide %>%
+  filter(LiveDead_fall2024 == "L") %>%
+  group_by(Site) %>%
+  summarize(n = n())
+belfast_live <- LiveDead_wide_Belfast %>%
+  filter(LiveDead_fall2024 == "L")
+region_live <- LiveDead_wide %>%
+  filter(LiveDead_fall2024 == "L") %>%
+  group_by(Region) %>%
+  summarize(n = n()) 
+# REMEMBER: That excludes Belfast
+region_Live_Belfast <- LiveDead_wide_Belfast %>%
+  filter(LiveDead_summer2024 == "L") %>%
+  group_by(Region) %>%
+  summarize(n = n())
+```
+
+```{r, echo=FALSE, warning = FALSE, message=FALSE}
+# Creating vectors
+Species <- c("Sweet Gum", "Tulip", "Red Cedar", "Chestnut Oak", "White Oak", "Red Oak", 
+             "White Pine", "White Spruce")
+Survival <- c(30.6, 25.5, 26.1, 61.5, 46.8, 28.6, 57.6, 51.0)
+# Creating a dataframe
+perc_survival <- data.frame(Species, Survival)
+str(perc_survival)
+
+ggplot(perc_survival,aes(x = reorder(Species, Survival), y = Survival)) +
+  geom_col(fill = "#347C98") +
+  labs(title = "Survival of Seedlings (5 years)", y = "Survival (%)", x = "Species") +
+  coord_flip() 
+```
+
+
+## Percent Living Per Species in 2024
+
+|Species |Region  |Planted |Live    |Survival|
+|--------|--------|--------|--------|--------|
+|s.gum   |southern|193     |59      |30.6%   |
+|tulip   |southern|192     |49      |25.5%   |
+|r.cedar |southern|180     |47      |26.1%   |
+|ch.oak  |southern|192     |118     |61.5%   |
+|w.oak   |southern|186     |87      |46.8%   |
+|r.oak   |northern|192     |55      |28.6%   |
+|w.pine  |northern|191     |110     |57.6%   |
+|w.spruce|northern|192     |98      |51.0%   |
+|total   |southern|943     |365     |38.7%   |
+|total   |northern|575     |265     |46.1%   |
+
+## Percent Living Per Site in 2024
+
+|Site    |Planted |Live    |Survival|
+|--------|--------|--------|--------|
+|Belfast |380     |227     |59.7%   |    
+|MDI     |383     |150     |39.2%   |  
+|Schoodic|374     |68      |18.2%   |
+|Surry   |381     |177     |46.5%   |
+
+
+> Overall take-aways from live/dead
+
+> - Species with highest survival was chestnut oak (61.5%)
+> - Species with lowest survival was tulip (25.5%)
+> - 26.2% of southern spp died the first winter, while 24.6% of northern spp died (excluding Belfast)
+> - 38.7% living southern species in 2024
+> - 46.1% living northern species in 2024
+> - Site with the highest survival was Belfast (59.7%)
+> - Site with the lowest survival was Schoodic (18.2%)
