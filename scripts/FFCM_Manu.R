@@ -70,12 +70,14 @@ belfast <- belfast %>%
     Length_fall2024 = `Length 10/29/24`,
     Notes_fall2024 = Notes
   ) %>%
+#Note that Belfast was not visited in fall 2020, so I added those columns
   mutate(
     LiveDead_fall2020 = NA,
     Browse_fall2020 = NA, 
     Length_fall2020 = NA,
     Notes_fall2020 = NA, .after = Notes_summer2020
   ) %>%
+#Belfast is also missing some note and browse columns
   mutate( 
     Notes_summer2022 = NA, .after = Length_summer2022
   ) %>%
@@ -141,7 +143,7 @@ mdi <- mdi %>%
   mutate(
     Browse_fall2020 = NA, .after = LiveDead_fall2020
   )
-# Note: Schoodic Planting Data column doesn't read as a date, fixed.
+#Note: Schoodic Planting Data column doesn't read as a date, fixed.
 schoodic$`Planting Date` <- as.Date(43617.0, origin = "1899-12-30")
 
 schoodic <- schoodic %>%
@@ -289,7 +291,7 @@ master <- master %>%
   mutate(Tube = replace_na(Tube, "N"))
 
 #Note: Numeric woes. Make sure the columns are compatible. Length should be numeric, 
-#browse should be character....
+#browse should be character, at least for now
 
 #str(master)
 master_wide <- master %>%
@@ -304,6 +306,8 @@ master_wide <- master %>%
 #str(master_wide)
 
 #Note: Deleting the not planted seedlings
+#Found that they were not planted in the notes, and they never have any data
+#List of unique IDs documented in tidy markdown
 
 not_planted <- master_wide %>%
   filter(is.na(Notes_summer2019) | Notes_summer2019 == "not planted") %>%
@@ -321,12 +325,11 @@ master_wide <- master_wide %>%
   mutate(LiveDead_summer2019 = "L", .before = Length_fall2019)
 # remember that the filter will delete the NAs, so manually kept them in
 
-#This is really where I start to differ from previous code
-#Cleaning everything up now instead of later
-# so far tube is clean, but that is it...
+#This is really where I start to differ from tidy markdown
+#Cleaning everything up now instead of later, so far tube is clean
 
 # STEP 7: CLEAN LIVE DEAD
-# made it long to clean the columns better
+#made it long to clean the columns better
 cleanLiveDead <- master_wide %>%
   select(UniqueID, starts_with("Live")) %>%
   pivot_longer(
@@ -339,7 +342,8 @@ cleanLiveDead <- master_wide %>%
                          "R" = "D", "F" = "D", "c" = "D", "-" = "D", "ad" = "D")) %>%
   mutate(LiveDead = replace_na(LiveDead, "D"))
 
-# I can't just recode the rows with the N value because one is live and one is dead
+#I can't just recode the rows with the N value because one is live and one is dead
+#determined Live or Dead based on length data, documented in tidy markdown
 cleanLiveDead$LiveDead[cleanLiveDead$UniqueID == 246] <- "D"  #MDI
 cleanLiveDead$LiveDead[cleanLiveDead$UniqueID == 1016] <- "L" #Belfast
 # made it wide again to reattach it to master wide
@@ -359,7 +363,7 @@ master_wide <- master_wide %>%
 #Therefore, I filtered them out the seedlings with the dead lengths, replaced their length with NA, 
 #and then combined them back with the original.
 
-# grabbing the seedlings with bad fall 2019 lengths and making that column NA
+#grabbing the seedlings with bad fall 2019 lengths and making that column NA
 dead19 <- master_wide %>%
   filter(grepl("dead total length", Notes_fall2019) | 
            grepl("dead. total length", Notes_fall2019) | 
@@ -369,24 +373,23 @@ dead19 <- master_wide %>%
            UniqueID == 940 | UniqueID == 945) %>%
   mutate(Length_fall2019 = NA)
 
-# grabbing the good seedlings and separating them out
+#grabbing the good seedlings and separating them out
 alive19 <- master_wide %>%
   filter(!grepl("dead total length", Notes_fall2019), 
          !grepl("dead. total length", Notes_fall2019), 
          !grepl("dead? total length", Notes_fall2019),
          !grepl("deal total length", Notes_fall2019),
          UniqueID != 940, UniqueID != 945) 
-# then combined
-master_wide <- rbind(dead19, alive19)
-# then took out the misc seedlings with bad lengths
+#then combined
+master_wide <- rbind(alive19,dead19)
+#then took out the misc seedlings with bad lengths
 master_wide <- master_wide %>%
   filter(UniqueID != 1382 & UniqueID != 808 & UniqueID != 11 & UniqueID != 1227)
 
-#I think the data is clean? I didn't delete the zombie seedlings
-#maybe make all the columns characters?
+# PLEASE NOTE I DID NOT DELETE ANY ZOMBIE SEEDLINGS
 
-# OK didn't work because characters and numbers. Just going to make them all numbers
-# Y = 1, N = 0  for browse and L = 1, D = 0 for LiveDead, getting rid of notes...
+#making the data long didnt work because characters and numbers
+# Y = 1, N = 0  for browse and L = 1, D = 0 for LiveDead, getting rid of notes column
 
 live_numeric <- master_wide %>%
   #pulling out LiveDead and making 1,0
@@ -420,27 +423,38 @@ master_wide <- master_wide %>%
   select(!starts_with("Browse")) %>%
   left_join(browse_numeric, by = "UniqueID")
 
-
 data_long <- master_wide %>%
   select(!starts_with("Notes")) %>%
   pivot_longer(
    cols = starts_with(c("Length", "Browse", "Live")),
    names_to = "Visit",
    values_to = "Data")
-######## I did it!? ###########
-write_xlsx(data_long, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\data_long.xlsx')
 
+write_xlsx(data_long, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\data_long.xlsx')
+
+#here is where I am pulling out the data needed for the manuscript
 data <- data_long %>%
   pivot_wider(names_from = Visit, values_from = Data) %>%
   select(UniqueID, Site, Plot, Species, Tube, LiveDead_fall2024, Length_summer2019,
          Length_fall2024) %>%
   mutate(Growth = Length_fall2024 - Length_summer2019) %>%
-  select(-c(Length_summer2019, Length_fall2024)) 
+  select(-c(Length_summer2019, Length_fall2024)) %>%
+  mutate(Region = case_when(
+    Species == "tulip" | Species == "s.gum" ~ "southern",
+    Species == "r.oak" | Species == "w.spruce" | Species == "w.pine" ~ "local",
+    Species == "ch.oak" | Species == "r.cedar" | Species == "w.oak" ~ "Maine")
+    , .before = Tube)
 
+#plotting just to make sure it looks reasonable
 ggplot(data, aes(x = Species, y = Growth)) +
   geom_boxplot() +
   facet_wrap(~Site) +
   geom_hline(yintercept = 0) +
   labs(title = "Growth in 2024", x = "Species", y = "Growth (cm)") +
   theme(axis.text.x = element_text(angle = 90))
-  
+
+#I think I need to go through the previous markdown files from winter 2025 to...
+#make sure I got all the seedlings that should be altered. Can do this when I deal with zombie seedlings?
+write_xlsx(data, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\data.xlsx')
+
+
