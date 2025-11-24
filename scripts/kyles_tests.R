@@ -5,7 +5,7 @@ library(stringr)
 
 
 longdat <- read_excel("data/data_long.xlsx") %>% 
-  rename(unique.id = UniqueID, planting.date = PlantingDate) %>% 
+  rename(sapling.id = UniqueID, planting.date = PlantingDate) %>% 
   rename_with(tolower)
 
 
