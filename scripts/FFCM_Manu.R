@@ -13,10 +13,10 @@ library(ggplot2)
 library(forcats)
 
 # STEP 1: GRAB THE DATA
-belfast <- read_excel("C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM_Data_Belfast_2024.xlsx")
-mdi <- read_excel("C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM_Data_MDI_2024.xlsx")
-schoodic <- read_excel("C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM_Data_SchoodicNorth_2024.xlsx")
-surry <- read_excel("C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM_Data_SurryForest_2024.xlsx")
+belfast <- read_excel("C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\FFCM_Data_Belfast_2024.xlsx")
+mdi <- read_excel("C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\FFCM_Data_MDI_2024.xlsx")
+schoodic <- read_excel("C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\FFCM_Data_SchoodicNorth_2024.xlsx")
+surry <- read_excel("C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\FFCM_Data_SurryForest_2024.xlsx")
 
 # STEP 2: MAKE ALL COLUMN NAMES THE SAME
 # STEP 3: MAKE ALL SITES HAVE SAME NUMBER OF COLUMNS
@@ -433,31 +433,6 @@ data_long <- master_wide %>%
 write_xlsx(data_long, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\data_long.xlsx')
 
 #here is where I am pulling out the data needed for the manuscript
-data <- data_long %>%
-  pivot_wider(names_from = Visit, values_from = Data) %>%
-  select(UniqueID, Site, Plot, Species, Tube, LiveDead_fall2024, Length_summer2019,
-         Length_fall2024) %>%
-  mutate(Growth = Length_fall2024 - Length_summer2019) %>%
-  select(-c(Length_summer2019, Length_fall2024)) %>%
-  mutate(Region = case_when(
-    Species == "tulip" | Species == "s.gum" ~ "southern",
-    Species == "r.oak" | Species == "w.spruce" | Species == "w.pine" ~ "local",
-    Species == "ch.oak" | Species == "r.cedar" | Species == "w.oak" ~ "Maine")
-    , .before = Tube)
-
-#plotting just to make sure it looks reasonable
-ggplot(data, aes(x = Species, y = Growth)) +
-  geom_boxplot() +
-  facet_wrap(~Site) +
-  geom_hline(yintercept = 0) +
-  labs(title = "Growth in 2024", x = "Species", y = "Growth (cm)") +
-  theme(axis.text.x = element_text(angle = 90))
-
-#I think I need to go through the previous markdown files from winter 2025 to...
-#make sure I got all the seedlings that should be altered. Can do this when I deal with zombie seedlings?
-write_xlsx(data, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\data.xlsx')
-
-# Continuing to alter the data files into what I need
 # added measure (what type of data, sample.period (season), year)
 
 longdat <- read_excel("data/data_long.xlsx") %>% 
@@ -508,6 +483,13 @@ longdat2 <- longdat %>%
     species == "tulip" | species == "s.gum" ~ "southern",
     species == "r.oak" | species == "w.spruce" | species == "w.pine" ~ "local",
     species == "ch.oak" | species == "r.cedar" | species == "w.oak" ~ "maine"), .before = tube)
+
+# since we only care if it was alive at the end of the study & growth that is what i kept
+clean24 <- longdat2 %>%
+  select(sapling.id, site, species, region, tube, sample.period, year, livedead, growth) %>%
+  filter(sample.period == "fall" & year == "2024") %>%
+  select(-c(sample.period, year))
+
 
 # Now I am looking for zombie seedlings aka the seedlings that were at one point marked dead and then later alive
 # Important to remember that Belfast was not visited in the fall of 2020, so excluding Belfast 
@@ -571,8 +553,8 @@ write_xlsx(zombie10, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\
 # Making a new column called unreliable
 # Also I see there are a lot of NAs in the browse column, I think I should make those 0? 
 
-clean <- longdat2 %>%
-  mutate(unreliable = 0)
+#clean <- longdat2 %>%
+#  mutate(unreliable = 0)
 
 # There are 462 seedlings that are unreliable, I couple copy paste in their sapling.id but I will double check
 
