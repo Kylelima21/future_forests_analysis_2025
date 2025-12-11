@@ -499,66 +499,93 @@ zombie <- longdat %>%
   select(sapling.id, site, species, starts_with("LiveDead"))
 
 zombie1 <- zombie %>%
-  filter(LiveDead_fall2019 == 0 & LiveDead_summer2020 == 1)
+  filter(LiveDead_fall2019 == 0 & LiveDead_summer2020 == 1) %>%
+  select(sapling.id)
 
 write_xlsx(zombie1, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie1.xlsx')
 
 zombie2 <- zombie %>%
   filter(LiveDead_summer2020 == 0 & LiveDead_fall2020 == 1) %>%
-  filter(site != "Belfast")
+  filter(site != "Belfast") %>%
+  select(sapling.id)
 
 write_xlsx(zombie2, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie2.xlsx')
 
 zombie3 <- zombie %>%
   filter(LiveDead_fall2020 == 0 & LiveDead_summer2021 == 1) %>%
-  filter(site != "Belfast")
+  filter(site != "Belfast") %>%
+  select(sapling.id)
 
 write_xlsx(zombie3, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie3.xlsx')
 
 zombie4 <- zombie %>%
-  filter(LiveDead_summer2021 == 0 & LiveDead_fall2021 == 1) 
+  filter(LiveDead_summer2021 == 0 & LiveDead_fall2021 == 1) %>%
+  select(sapling.id)
 
 write_xlsx(zombie4, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie4.xlsx')
 
 zombie5 <- zombie %>%
-  filter(LiveDead_fall2021 == 0 & LiveDead_summer2022 == 1) 
+  filter(LiveDead_fall2021 == 0 & LiveDead_summer2022 == 1) %>%
+  select(sapling.id)
 
 write_xlsx(zombie5, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie5.xlsx')
 
 zombie6 <- zombie %>%
-  filter(LiveDead_summer2022 == 0 & LiveDead_fall2022 == 1)
+  filter(LiveDead_summer2022 == 0 & LiveDead_fall2022 == 1) %>%
+  select(sapling.id)
+
 write_xlsx(zombie6, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie6.xlsx')
 
 zombie7 <- zombie %>%
-  filter(LiveDead_fall2022 == 0 & LiveDead_summer2023 == 1)
+  filter(LiveDead_fall2022 == 0 & LiveDead_summer2023 == 1) %>%
+  select(sapling.id)
 
 write_xlsx(zombie7, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie7.xlsx')
 
 zombie8 <- zombie %>%
-  filter(LiveDead_summer2023 == 0 & LiveDead_fall2023 == 1)
+  filter(LiveDead_summer2023 == 0 & LiveDead_fall2023 == 1) %>%
+  select(sapling.id)
 
 write_xlsx(zombie8, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie8.xlsx')
 
 zombie9 <- zombie %>%
-  filter(LiveDead_fall2023 == 0 & LiveDead_summer2024 == 1)
+  filter(LiveDead_fall2023 == 0 & LiveDead_summer2024 == 1) %>%
+  select(sapling.id)
 
 write_xlsx(zombie9, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie9.xlsx')
 
 zombie10 <- zombie %>%
-  filter(LiveDead_summer2024 == 0 & LiveDead_fall2024 == 1)
+  filter(LiveDead_summer2024 == 0 & LiveDead_fall2024 == 1) %>%
+  select(sapling.id)
 
 write_xlsx(zombie10, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie10.xlsx')
 # 462 zombie seedlings. We may want to exclude these going forward
+# Combining all the zombie files into one long file
+totalzombie <-rbind(zombie1, zombie2, zombie3, zombie4, zombie5, zombie6, zombie7, zombie8, zombie9, zombie10)
 
-# Making a new column called unreliable
-# Also I see there are a lot of NAs in the browse column, I think I should make those 0? 
+duplicate <- totalzombie %>%
+  count(sapling.id) %>%
+  filter(n > 1)
+# I manually checked this in excel, and it seems to be correct
+write_xlsx(duplicate, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\duplicate_seedlings.xlsx')
 
-#clean <- longdat2 %>%
-#  mutate(unreliable = 0)
+# I assume we will exclude the seedlings that died and came back to life 2 times or more? 
+# it is only 63 seedlings, which is really exciting
 
-# There are 462 seedlings that are unreliable, I couple copy paste in their sapling.id but I will double check
+# quick survival graph
 
-#t <- clean %>% 
-#  select(-c(year, browse, livedead)) %>% 
-# pivot_wider(names_from = sample.period, values_from = length) %>% 
-# mutate(growth = fall2024 - summer2019)
+live <- clean24 %>%
+  select(species, livedead) %>%
+  group_by(species) %>%
+  summarize(n = n(),
+            live = sum(livedead)) %>%
+  mutate(perc = live/n)
+
+ggplot(live, aes(x = species, y = perc)) +
+  geom_col()+
+  labs(title = "Survival of Seedlings (5 years)", y = "Survival (%)", x = "Species") +
+  coord_flip() +
+  ylim(0, 1)
+  
+
+  
