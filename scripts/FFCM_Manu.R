@@ -484,12 +484,16 @@ longdat2 <- longdat %>%
     species == "r.oak" | species == "w.spruce" | species == "w.pine" ~ "local",
     species == "ch.oak" | species == "r.cedar" | species == "w.oak" ~ "maine"), .before = tube)
 
+write_xlsx(longdat2, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\longdat2.xlsx')
+
+
 # since we only care if it was alive at the end of the study & growth that is what i kept
 clean24 <- longdat2 %>%
   select(sapling.id, site, species, region, tube, sample.period, year, livedead, growth) %>%
   filter(sample.period == "fall" & year == "2024") %>%
   select(-c(sample.period, year))
 
+write_xlsx(clean24, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\clean24.xlsx')
 
 # Now I am looking for zombie seedlings aka the seedlings that were at one point marked dead and then later alive
 # Important to remember that Belfast was not visited in the fall of 2020, so excluding Belfast 
