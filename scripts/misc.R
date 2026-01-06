@@ -9,6 +9,8 @@ library(ggplot2)
 library(forcats)
 library(lmtest)
 
+# attempt analysis ----
+
 # cleanest version of the data in long form
 longdat <- read_excel("data/longdat.xlsx")
 longdat2 <- read_excel("data/longdat2.xlsx")
@@ -27,7 +29,6 @@ clean <- longdat2 %>%
   mutate(years_growth = runif(nrow(clean24), 0, 5)) %>%
   filter(!is.na(growth))
 
-############
 m1 = glmmTMB(growth ~ site*species*tube*years_growth + (1|site.plot), data = clean, na.action = "na.fail")
 m2 = glmmTMB(growth ~ site+species+tube + site+species*years_growth + species*tube*years_growth + site*tube*years_growth +(1|site.plot), data = clean)
 anova(m2, m1)
@@ -37,10 +38,17 @@ install.packages('MuMIn')
 library('MuMIn')
 
 dredge(m1)
-########################################
+
+# bad seedlings ----
 #double checking some bad seedlings
 seed_1382 <- master_wide %>%
   filter(UniqueID == 1382)
+
+## WHich ones were mowed?
+
+mower <- master_wide %>%
+  filter(Site == "MDI", Plot == 4) %>%
+  select(UniqueID, Site, Plot, Cell, Species, starts_with("Notes"))
 
 a <- longdat %>%
   filter(!grepl("Browse", visit)) %>%
@@ -75,7 +83,7 @@ a <- longdat %>%
   select(!c(sample.period, year)) %>%
   pivot_wider(names_from = visit, values_from )
   
-#############tube nightmare
+# tube ----
 tube.info <- master_wide %>%
   select(UniqueID, Site, Species, Tube) %>%
   filter(Tube == "Y") %>%
@@ -87,7 +95,7 @@ plant.info <- master_wide %>%
   group_by(Site, Species) %>%
   summarize(n = n())
 
-###########################zombies again
+# zombies again ----
 
 # so I have the total zombie (which is sapling.id) and master wide (Unique ID)
 # also have to get rid of duplicates maybe from total zombie?
@@ -110,11 +118,12 @@ write_xlsx(z2, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\
 ggplot(z2, aes(x = Species)) +
   geom_bar()
 
-##### looking at notes really fast
+# notes ----
 notes <- master_wide %>%
   select(UniqueID, Site, Species, starts_with("Notes"))
 
-#### final year there is data
+# final growth year ----
+
 # wide version
 final_live_wide <- longdat %>%
   pivot_wider(names_from = visit, values_from = data) %>%
@@ -123,7 +132,6 @@ final_live_wide[final_live_wide == 0] <- NA
 
 
 #long version
-
 final_live_long <- longdat %>%
   mutate(
     measure = case_when(
@@ -133,6 +141,9 @@ final_live_long <- longdat %>%
       str_detect(visit, "Total") ~ "growth"
     )
   ) %>%
+# so I am making the visits their own number, so the beginning summer2019 is 0 and end fall 2024 5.5
+# this was I can pull out each seedlings max sampling 
+# that should have their final height and last sampling time
   mutate(
     sample.period = case_when(
       str_detect(visit, "summer2019") ~ 0,
@@ -151,29 +162,53 @@ final_live_long <- longdat %>%
   ) %>%
   filter(measure != "browse")
 
-#getting rid of NAs for length and ) for livedead. Should be left with the living
+# getting rid of NAs for length and ) for livedead. Should be left with the living
 alive_final_long <- final_live_long %>%
   filter(complete.cases(.) & data >0) 
 
+# this should be each seedlings final sampling
+# NOTE I AM IGNORING THE ZOMBIES (FOR NOW)
 a_summary <- alive_final_long %>%
   group_by(sapling.id) %>%
   summarize(sample.period = max(sample.period))
+
+# This should pull back the rest of the data, so the final sampling and final height
 a <- left_join(a_summary, alive_final_long, by = c("sapling.id", "sample.period")) 
 
+# trying to get the initial lengths from the seedlings
+
+inital_live_wide <- final_live_wide %>%
+  select(sapling.id, Length_summer2019)
+
+a2 <- a %>%
+  select(!visit) %>%
+  pivot_wider(names_from = measure, values_from = data) %>%
+# with this join I am grabbing the initial length for each seedling
+  left_join(inital_live_wide, by = "sapling.id") %>%
+# here I am finding how much it has grown until it dies
+  mutate(growth = length - Length_summer2019) %>%
+# cleaning up the columns, grabbing what we need
+  mutate(site.plot = paste(site, plot, sep = "_")) %>%
+  select(!c(site, plot, planting.date, cell)) %>%
+  rename(years.grown = sample.period) %>%
+  relocate(years.grown, .after = growth) %>%
+  relocate(site.plot, .after = sapling.id) %>%
+# putting the plant regions in
+  mutate(region = case_when(
+    species == "tulip" | species == "s.gum" ~ "southern",
+    species == "r.oak" | species == "w.spruce" | species == "w.pine" ~ "local",
+    species == "ch.oak" | species == "r.cedar" | species == "w.oak" ~ "maine"), .before = tube)
+# next is deleting the initial and the final growth
 
 
 
 
 
 
-mtcars %>%
-  group_by(cyl) %>%
-  summarize(mean_mpg = mean(mpg, na.rm = TRUE))
 
-## WHich ones were mowed?
 
-mower <- master_wide %>%
-  filter(Site == "MDI", Plot == 4) %>%
-  select(UniqueID, Site, Plot, Cell, Species, starts_with("Notes"))
+
+
+
 
 
