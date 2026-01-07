@@ -95,6 +95,40 @@ plant.info <- master_wide %>%
   group_by(Site, Species) %>%
   summarize(n = n())
 
+# need to code out the tubes, instead of manually doing it
+# key phrases: "no tube" "tube fell" "tube broke" "tube tip"
+# "uprooted by tube" "uprooted tube" "tube came off" "tube gone"
+# "tube missing" "removed tube" "took tube away" "tube down"
+# "tube removed" "outside tube" "tube was down" "no tube found"
+# "tube fell over" "tube fallen over" "not tube"
+# "tube fell off" "tube remove" 
+
+# what do I do about tube previously removed?
+
+# finding bad tubes through notes
+bad.tubes <- master_wide %>%
+  select(!starts_with(c("Length", "Browse", "Live"))) %>%
+  pivot_longer(
+    cols = starts_with("Notes"),
+    names_to = "Visit",
+    values_to = "Notes") %>%
+  filter(Notes == "no tube" | Notes == "tube fell" | Notes == "tube broke" | 
+         Notes == "tube tip" | Notes == "uprooted by tube" | Notes == "uprooted tube" | 
+         Notes == "tube came off" | Notes == "tube gone" | Notes == "tube missing" |
+         Notes == "removed tube" | Notes == "took tube away" | Notes == "tube down" |
+         Notes == "tube removed" | Notes == "outside tube" | Notes == "tube was down" |
+         Notes == "no tube found" | Notes == "tube fell over" | Notes == "tube fallen over" |
+         Notes == "not tube" | Notes == "tube fell off" | Notes == "tube remove")
+  
+  
+# filter(is.na(Notes_summer2019) | Notes_summer2019 == "not planted") %>%  
+# filter(grepl("dead total length", Notes_fall2019) | 
+
+
+
+
+
+
 # zombies again ----
 
 # so I have the total zombie (which is sapling.id) and master wide (Unique ID)
@@ -164,7 +198,7 @@ final_live_long <- longdat %>%
 
 # getting rid of NAs for length and ) for livedead. Should be left with the living
 alive_final_long <- final_live_long %>%
-  filter(complete.cases(.) & data >0) 
+  filter(complete.cases(.) & data > 0) 
 
 # this should be each seedlings final sampling
 # NOTE I AM IGNORING THE ZOMBIES (FOR NOW)
@@ -200,8 +234,22 @@ a2 <- a %>%
     species == "ch.oak" | species == "r.cedar" | species == "w.oak" ~ "maine"), .before = tube)
 # next is deleting the initial and the final growth
 
+# jk next step is to find the maximum height for each seedling
 
+max_height <- final_live_long %>%
+  filter(measure == "length") %>%
+  filter(complete.cases(.) & data > 0) %>%
+  group_by(sapling.id) %>%
+  summarize(max = max(data))
 
+# adding that max height to the other dataframe
+
+a_clean <- a2 %>%
+  left_join(max_height, by = "sapling.id") %>%
+  mutate(max.growth = max - Length_summer2019) %>%
+  select(!c(length, Length_summer2019, max))
+  
+write_xlsx(a_clean, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\a_clean.xlsx')
 
 
 
