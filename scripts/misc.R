@@ -84,6 +84,8 @@ a <- longdat %>%
   pivot_wider(names_from = visit, values_from )
   
 # tube ----
+master_wide <- read_excel("data/master_wide.xlsx")
+
 tube.info <- master_wide %>%
   select(UniqueID, Site, Species, Tube) %>%
   filter(Tube == "Y") %>%
@@ -106,27 +108,78 @@ plant.info <- master_wide %>%
 # what do I do about tube previously removed?
 
 # finding bad tubes through notes
+  
+
+
 bad.tubes <- master_wide %>%
   select(!starts_with(c("Length", "Browse", "Live"))) %>%
   pivot_longer(
     cols = starts_with("Notes"),
     names_to = "Visit",
     values_to = "Notes") %>%
-  filter(Notes == "no tube" | Notes == "tube fell" | Notes == "tube broke" | 
-         Notes == "tube tip" | Notes == "uprooted by tube" | Notes == "uprooted tube" | 
-         Notes == "tube came off" | Notes == "tube gone" | Notes == "tube missing" |
-         Notes == "removed tube" | Notes == "took tube away" | Notes == "tube down" |
-         Notes == "tube removed" | Notes == "outside tube" | Notes == "tube was down" |
-         Notes == "no tube found" | Notes == "tube fell over" | Notes == "tube fallen over" |
-         Notes == "not tube" | Notes == "tube fell off" | Notes == "tube remove")
-  
-  
-# filter(is.na(Notes_summer2019) | Notes_summer2019 == "not planted") %>%  
-# filter(grepl("dead total length", Notes_fall2019) | 
+  filter(grepl("no tube", Notes) | grepl("tube fell", Notes) | grepl("tube broke", Notes) |
+           grepl("tube tip", Notes) | grepl("uprooted by tube", Notes) |
+           grepl("uprooted tube", Notes) | grepl("tube came off", Notes) |
+           grepl("tube gone", Notes) | grepl("tube missing", Notes) |
+           grepl("removed tube", Notes) | grepl("took tube away", Notes) |
+           grepl("tube down", Notes) | grepl("tube removed", Notes) |
+           grepl("outside tube", Notes) | grepl("tube was down", Notes) |
+           grepl("no tube found", Notes) | grepl("tube fell over", Notes) |
+           grepl("tube fallen over", Notes) | grepl("not tube", Notes) |
+           grepl("tube fell off", Notes) | grepl("tube remove", Notes)) %>%
+# Making the visits numerical so I can grab the first one easier
+  mutate(
+    sample.period = case_when(
+      str_detect(Visit, "summer2019") ~ 0,
+      str_detect(Visit, "fall2019") ~ 0.5,
+      str_detect(Visit, "summer2020") ~ 1,
+      str_detect(Visit, "fall2020") ~ 1.5,
+      str_detect(Visit, "summer2021") ~ 2,
+      str_detect(Visit, "fall2021") ~ 2.5,
+      str_detect(Visit, "summer2022") ~ 3,
+      str_detect(Visit, "fall2022") ~ 3.5,
+      str_detect(Visit, "summer2023") ~ 4,
+      str_detect(Visit, "fall2023") ~ 4.5,
+      str_detect(Visit, "summer2024") ~ 5,
+      str_detect(Visit, "fall2024") ~ 5.5
+    )
+  ) %>%
+  group_by(UniqueID) %>%
+  summarize(first.down.tube = min(sample.period)) %>%
+# I renamed this to sample.period so it would match the other data frame
+# However, as a reminder, it is the first visit the tube went down
+  rename(sample.period = first.down.tube) %>%
+  rename(sapling.id = UniqueID)
 
+# grabbing the needed info from the long version of the data so I can join
 
+tube.long <- longdat %>%
+  mutate(
+    sample.period = case_when(
+      str_detect(visit, "summer2019") ~ 0,
+      str_detect(visit, "fall2019") ~ 0.5,
+      str_detect(visit, "summer2020") ~ 1,
+      str_detect(visit, "fall2020") ~ 1.5,
+      str_detect(visit, "summer2021") ~ 2,
+      str_detect(visit, "fall2021") ~ 2.5,
+      str_detect(visit, "summer2022") ~ 3,
+      str_detect(visit, "fall2022") ~ 3.5,
+      str_detect(visit, "summer2023") ~ 4,
+      str_detect(visit, "fall2023") ~ 4.5,
+      str_detect(visit, "summer2024") ~ 5,
+      str_detect(visit, "fall2024") ~ 5.5
+    )
+  ) %>%
+  filter(grepl("LiveDead", visit))
 
-
+tubes.dead.down <- left_join(bad.tubes, tube.long, by = c("sapling.id", "sample.period"))
+# OK so I found the firs time the tube went bad for each seedling and whether it was alive or dead
+# there are 163 tubes with notes
+tubes.down.seedling.alive <- tubes.dead.down %>%
+  filter(data == 1)
+# SO these are the true bad tubes? These are the seedlings we need to crop their growth
+# So only 79 bad tubes? 
+# 13 of them were originally marked N for tubes
 
 
 # zombies again ----
@@ -159,6 +212,9 @@ notes <- master_wide %>%
 # final growth year ----
 
 # wide version
+
+longdat <- read_excel("data/longdat.xlsx")
+
 final_live_wide <- longdat %>%
   pivot_wider(names_from = visit, values_from = data) %>%
   select(!starts_with("Browse"))
