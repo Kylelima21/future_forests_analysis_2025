@@ -1,5 +1,5 @@
-install.packages('lmtest')
-install.packages('glmmTMB')
+#install.packages('lmtest')
+#install.packages('glmmTMB')
 library('glmmTMB')
 library(readxl)
 library(tidyverse)
@@ -186,6 +186,153 @@ tubes.down.seedling.alive <- tubes.dead.down %>%
 
 # so I have the total zombie (which is sapling.id) and master wide (Unique ID)
 # also have to get rid of duplicates maybe from total zombie?
+zombie <- longdat %>%
+  pivot_wider(names_from = visit, values_from = data) %>%
+  select(sapling.id, site, species, starts_with("LiveDead"))
+
+# Trying out seeing if dead multiple visits in a row
+zombie1 <- zombie %>%
+  filter(LiveDead_fall2019 == 0 & LiveDead_summer2020 == 1) %>%
+  select(sapling.id)
+
+
+write_xlsx(zombie1, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie1.xlsx')
+
+zombie2 <- zombie %>%
+  filter(LiveDead_summer2020 == 0 & LiveDead_fall2020 == 1) %>%
+  filter(site != "Belfast") %>%
+  select(sapling.id)
+
+write_xlsx(zombie2, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie2.xlsx')
+
+zombie3 <- zombie %>%
+  filter(LiveDead_fall2020 == 0 & LiveDead_summer2021 == 1) %>%
+  filter(site != "Belfast") %>%
+  select(sapling.id)
+
+write_xlsx(zombie3, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie3.xlsx')
+
+zombie4 <- zombie %>%
+  filter(LiveDead_summer2021 == 0 & LiveDead_fall2021 == 1) %>%
+  select(sapling.id)
+
+write_xlsx(zombie4, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie4.xlsx')
+
+zombie5 <- zombie %>%
+  filter(LiveDead_fall2021 == 0 & LiveDead_summer2022 == 1) %>%
+  select(sapling.id)
+
+write_xlsx(zombie5, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie5.xlsx')
+
+zombie6 <- zombie %>%
+  filter(LiveDead_summer2022 == 0 & LiveDead_fall2022 == 1) %>%
+  select(sapling.id)
+
+write_xlsx(zombie6, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie6.xlsx')
+
+zombie7 <- zombie %>%
+  filter(LiveDead_fall2022 == 0 & LiveDead_summer2023 == 1) %>%
+  select(sapling.id)
+
+write_xlsx(zombie7, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie7.xlsx')
+
+zombie8 <- zombie %>%
+  filter(LiveDead_summer2023 == 0 & LiveDead_fall2023 == 1) %>%
+  select(sapling.id)
+
+write_xlsx(zombie8, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie8.xlsx')
+
+zombie9 <- zombie %>%
+  filter(LiveDead_fall2023 == 0 & LiveDead_summer2024 == 1) %>%
+  select(sapling.id)
+
+write_xlsx(zombie9, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie9.xlsx')
+
+zombie10 <- zombie %>%
+  filter(LiveDead_summer2024 == 0 & LiveDead_fall2024 == 1) %>%
+  select(sapling.id)
+
+write_xlsx(zombie10, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie10.xlsx')
+# 462 zombie seedlings. We may want to exclude these going forward
+# Combining all the zombie files into one long file
+totalzombie <-rbind(zombie1, zombie2, zombie3, zombie4, zombie5, zombie6, zombie7, zombie8, zombie9, zombie10)
+
+duplicate <- totalzombie %>%
+  count(sapling.id) %>%
+  filter(n > 1)
+# I manually checked this in excel, and it seems to be correct
+write_xlsx(duplicate, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\duplicate_seedlings.xlsx')
+
+# example?
+# Example data frame
+df <- data.frame(
+  a = c(0, 1, 0, 0),
+  b = c(0, 0, 2, 0),
+  c = c(1, 0, 0, 0)
+)
+
+# Function to check consecutive zeros in a row
+has_consec_zeros <- function(row) {
+  r <- rle(row == 0)
+  any(r$values & r$lengths > 1)
+}
+
+# Apply to each row
+df$multiple_zeros <- apply(df, 1, has_consec_zeros)
+
+print(df)
+
+# do the zombie has multiple 0s in a row. Specifically >2
+
+has_consec_zeros <- function(row) {
+  r <- rle(row == 0)
+  any(r$values & r$lengths >2)
+}
+
+# Apply to each row
+zombie$multiple_zeros <- apply(zombie, 1, has_consec_zeros)
+
+
+# this still includes the ones that died...
+# example
+# Example data frame
+
+# Example data
+df <- data.frame(
+  A = c(1, 0, 3, 5, 0, 2),
+  B = c(0, 0, 0, 0, 0, 0),
+  C = c(0, 0, 4, 0, 0, 3),
+  D = c(0, 0, 0, 0, 0, 0),
+  E = c(1, 0, 0, 0, 1, 1)
+)
+
+# Function to check each row
+check_consecutive_zeros <- function(row) {
+  # Convert to logical: TRUE where zero
+  zero_flags <- row == 0
+  
+  # Find run lengths of consecutive zeros
+  r <- rle(zero_flags)
+  
+  # Check if the last run is zeros and length >= 1
+  last_is_zero <- tail(r$values, 1) && tail(r$lengths, 1) >= 1
+  
+  # Check if last run length >= 2 (multiple consecutive zeros)
+  multiple_consecutive <- tail(r$values, 1) && tail(r$lengths, 1) >= 2
+  
+  # Return TRUE if either condition is met
+  return(last_is_zero || multiple_consecutive)
+}
+
+# Apply to all rows
+df$ends_with_zeros <- apply(df, 1, check_consecutive_zeros)
+
+print(df)
+
+
+
+
+
 
 z <- master_wide %>%
   rename(sapling.id = UniqueID) %>%

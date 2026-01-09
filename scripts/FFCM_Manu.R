@@ -438,6 +438,8 @@ write_xlsx(data_long, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related
 longdat <- read_excel("data/data_long.xlsx") %>% 
   rename(sapling.id = UniqueID, planting.date = PlantingDate) %>% 
   rename_with(tolower)
+write_xlsx(longdat, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\longdat.xlsx')
+
 
 longdat2 <- longdat %>%
   pivot_wider(names_from = visit, values_from = data) %>%
