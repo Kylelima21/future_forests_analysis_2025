@@ -180,6 +180,13 @@ tubes.down.seedling.alive <- tubes.dead.down %>%
 # SO these are the true bad tubes? These are the seedlings we need to crop their growth
 # So only 79 bad tubes? 
 # 13 of them were originally marked N for tubes
+# need to grab info about them 
+ggplot(tubes.down.seedling.alive, aes(x = species)) +
+  geom_bar()
+
+updated.tube.table <- tubes.down.seedling.alive %>%
+  group_by(species, site) %>%
+  summarize(n = n())
 
 
 # zombies again ----
@@ -263,6 +270,21 @@ duplicate <- totalzombie %>%
 # I manually checked this in excel, and it seems to be correct
 write_xlsx(duplicate, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\duplicate_seedlings.xlsx')
 
+duplicate2 <- duplicate %>%
+  select(sapling.id)
+
+master_wide_altered <- master_wide %>%
+  rename(sapling.id = UniqueID) %>%
+  rename(region = Region) %>%
+  rename(site = Site) %>%
+  rename(plot = Plot) %>%
+  rename(cell = Cell) %>%
+  rename(species = Species) %>%
+  rename(planting.date = PlantingDate) %>%
+  rename(tube = Tube)
+# got rid of the zombies that are 2 or more resurrections
+master_wide_altered <- anti_join(master_wide_altered, duplicate2, by = "sapling.id")
+
 # example?
 # Example data frame
 df <- data.frame(
@@ -329,7 +351,35 @@ df$ends_with_zeros <- apply(df, 1, check_consecutive_zeros)
 
 print(df)
 
+# Example dataframe
+df <- data.frame(
+  A = c(1, 0, 0, 0, 2),
+  B = c(0, 0, 0, 0, 0),
+  C = c(3, 0, 0, 0, 0),
+  D = c(4, 1, 0, 0, 0)
+)
 
+# Function to check each row
+check_consecutive_zeros <- function(row) {
+  # Find positions of consecutive zeros
+  zero_runs <- rle(row == 0)
+  
+  # Check if there is a run of >= 2 zeros
+  has_consec <- any(zero_runs$values & zero_runs$lengths >= 2)
+  
+  # Check if the last run is zeros and goes to the end
+  ends_with_zeros <- tail(zero_runs$values, 1) && tail(zero_runs$lengths, 1) >= 2
+  
+  # Return TRUE only if consecutive zeros exist but don't go to the end
+  has_consec && !ends_with_zeros
+}
+
+# Apply to all rows
+result <- apply(df, 1, check_consecutive_zeros)
+
+# Show results
+df$result <- result
+df
 
 
 
@@ -454,11 +504,58 @@ a_clean <- a2 %>%
   
 write_xlsx(a_clean, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\a_clean.xlsx')
 
+# growth and tube
+# tube df is tubes.down.seedling.alive
+# final_live_long is good df for finding growth (alive_final_long has the dead ones exlcuded)
+# so, take the bad tubes and only grab lengths when the tubes were good
 
+a.bad.tube <- tubes.down.seedling.alive %>%
+  mutate(
+    sample.period = case_when(
+      str_detect(visit, "summer2019") ~ 0,
+      str_detect(visit, "fall2019") ~ 0.5,
+      str_detect(visit, "summer2020") ~ 1,
+      str_detect(visit, "fall2020") ~ 1.5,
+      str_detect(visit, "summer2021") ~ 2,
+      str_detect(visit, "fall2021") ~ 2.5,
+      str_detect(visit, "summer2022") ~ 3,
+      str_detect(visit, "fall2022") ~ 3.5,
+      str_detect(visit, "summer2023") ~ 4,
+      str_detect(visit, "fall2023") ~ 4.5,
+      str_detect(visit, "summer2024") ~ 5,
+      str_detect(visit, "fall2024") ~ 5.5
+    )
+  )
+# so anything after that sample period should be ignored
+  
+  
+  # Example data frames
+df1 <- data.frame(id = 1:10, value = c(5, 8, 3, 12, 7, 15, 2, 9, 4, 6))
+df2 <- data.frame(threshold = 7)  # This holds the cutoff number
 
+# Extract the threshold value safely
+cutoff <- df2$threshold[1]
 
+# Filter df1 to keep only rows with value <= cutoff
+df1_cropped <- df1 %>%
+  filter(value <= cutoff)
 
+# Show result
+print(df1_cropped)
 
+# I guess try it...
+# grab the bad tubed seedlings from final live
+bad.seedling.id <- 
+
+final_live_tube <- left_join(a.bad.tube, final_live_wide, by =c("sapling.id", "plot", "site", "cell",
+                                                                "species", "planting.date", "tube")) %>%
+  pivot_wider(names_from = Visit, values_from = LiveDead)
+  
+
+cutoff2 <- a.bad.tube$sample.period
+
+tube.final <- final_live_long %>%
+  filter(sample.period <= cutoff2)
 
 
 
