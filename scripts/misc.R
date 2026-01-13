@@ -39,7 +39,7 @@ library('MuMIn')
 
 dredge(m1)
 
-# bad seedlings ----
+# draft bad seedlings ----
 #double checking some bad seedlings
 seed_1382 <- master_wide %>%
   filter(UniqueID == 1382)
@@ -82,6 +82,8 @@ a <- longdat %>%
   mutate(visit = paste(sample.period, year, sep = ".")) %>%
   select(!c(sample.period, year)) %>%
   pivot_wider(names_from = visit, values_from )
+# bad seedlings master_wide ----
+
   
 # tube ----
 master_wide <- read_excel("data/master_wide.xlsx")
@@ -144,12 +146,11 @@ bad.tubes <- master_wide %>%
       str_detect(Visit, "fall2024") ~ 5.5
     )
   ) %>%
-  group_by(UniqueID) %>%
+  group_by(sapling.id) %>%
   summarize(first.down.tube = min(sample.period)) %>%
 # I renamed this to sample.period so it would match the other data frame
 # However, as a reminder, it is the first visit the tube went down
-  rename(sample.period = first.down.tube) %>%
-  rename(sapling.id = UniqueID)
+  rename(sample.period = first.down.tube) 
 
 # grabbing the needed info from the long version of the data so I can join
 
@@ -348,6 +349,7 @@ check_consecutive_zeros <- function(row) {
 
 # Apply to all rows
 df$ends_with_zeros <- apply(df, 1, check_consecutive_zeros)
+zombie$ends_with_zeros <- apply(zombie, 1, check_consecutive_zeros)
 
 print(df)
 
@@ -376,10 +378,14 @@ check_consecutive_zeros <- function(row) {
 
 # Apply to all rows
 result <- apply(df, 1, check_consecutive_zeros)
-
+result2 <- apply(zombie, 1, check_consecutive_zeros)
 # Show results
-df$result <- result
-df
+zombie$result <- result2
+
+
+
+
+
 
 
 
@@ -504,7 +510,8 @@ a_clean <- a2 %>%
   
 write_xlsx(a_clean, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\a_clean.xlsx')
 
-# growth and tube
+# growth and tube ----
+
 # tube df is tubes.down.seedling.alive
 # final_live_long is good df for finding growth (alive_final_long has the dead ones exlcuded)
 # so, take the bad tubes and only grab lengths when the tubes were good
@@ -527,6 +534,23 @@ a.bad.tube <- tubes.down.seedling.alive %>%
     )
   )
 # so anything after that sample period should be ignored
+
+test.tube <- tube.long %>%
+  left_join(bad.tubes, by = "sapling.id") %>%
+  filter(is.na(sample.period.y) | sample.period.x <= sample.period.y) %>%
+  select(-sample.period.y) %>%
+  rename(sample.period = sample.period.x)
+
+
+
+
+
+
+
+
+
+
+
   
   
   # Example data frames
