@@ -1,4 +1,4 @@
-# Loading in packages
+# Loading in packages ----
 #install.packages("readxl")
 #install.packages('tidyverse')
 #install.packages('dplyr')
@@ -12,6 +12,7 @@ library(writexl)
 library(ggplot2)
 library(forcats)
 
+# GRAB DATA, CLEAN SITES, COMBINE SITES ----
 # STEP 1: GRAB THE DATA
 belfast <- read_excel("C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\FFCM_Data_Belfast_2024.xlsx")
 mdi <- read_excel("C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\FFCM_Data_MDI_2024.xlsx")
@@ -273,13 +274,15 @@ surry <- surry %>%
   )
 
 # STEP 5: COMBINE SITES
+master <- rbind(mdi, schoodic, belfast, surry)
+
+# ADD UNIQUEID, CLEAN SPECIES, TUBE, BROWSE ----
+
 # STEP 6: ADD A UNIQUE ID COLUMN
 
-#Note: Noticed there is r oak, r. oak, and r.oak. Fixed
-
-master <- rbind(mdi, schoodic, belfast, surry)
 master <- master %>% mutate(UniqueID = 1:n(), .before = Site)
 #table(master$Species)
+#Note: Noticed there is r oak, r. oak, and r.oak. Fixed
 master <- master %>%
   mutate(Species = recode(Species, "r oak" = "r.oak")) %>%
   mutate(Species = recode(Species, "r. oak" = "r.oak"))
@@ -305,7 +308,7 @@ master_wide <- master %>%
 
 #str(master_wide)
 
-#Note: Deleting the not planted seedlings
+# DELETE THE NOT PLANTED SEEDLINGS ----
 #Found that they were not planted in the notes, and they never have any data
 #List of unique IDs documented in tidy markdown
 
@@ -328,7 +331,9 @@ master_wide <- master_wide %>%
 #This is really where I start to differ from tidy markdown
 #Cleaning everything up now instead of later, so far tube is clean
 
-# STEP 7: CLEAN LIVE DEAD
+# CLEAN LIVEDEAD ----
+
+# STEP 7: CLEAN LIVE DEAD 
 #made it long to clean the columns better
 cleanLiveDead <- master_wide %>%
   select(UniqueID, starts_with("Live")) %>%
@@ -354,10 +359,9 @@ master_wide <- master_wide %>%
   select(!starts_with("Live")) %>%
   left_join(cleanLiveDead, by = "UniqueID")
 
-# STEP 8: CLEAN BROWSE
-# actually might be fine, the NAs seem to be when the plant is dead. Can double check this
+# CLEAN LENGTH ----
 
-# STEP 9: CLEAN LENGTH
+# STEP 8: CLEAN LENGTH
 #There are 200 seedlings where in the fall of 2019 they were dead but still had a length measured. 
 #I would like to make it so the length of them is NA in that visit.
 #Therefore, I filtered them out the seedlings with the dead lengths, replaced their length with NA, 
@@ -388,6 +392,7 @@ master_wide <- master_wide %>%
 
 # PLEASE NOTE I DID NOT DELETE ANY ZOMBIE SEEDLINGS
 
+# MAKING DATA LONG, COLUMNS NUMERIC ----
 #making the data long didnt work because characters and numbers
 # Y = 1, N = 0  for browse and L = 1, D = 0 for LiveDead, getting rid of notes column
 
@@ -423,6 +428,58 @@ master_wide <- master_wide %>%
   select(!starts_with("Browse")) %>%
   left_join(browse_numeric, by = "UniqueID")
 
+# FINALIZE MASTER_WIDE; MISC SEEDLINGS, BAD TUBES ----
+
+# renaming columns in master_wide so it matches later data
+master_wide <- master_wide %>%
+  rename(sapling.id = UniqueID) %>%
+  rename(site = Site) %>%
+  rename(plot = Plot) %>%
+  rename(cell = Cell) %>%
+  rename(species = Species) %>%
+  rename(planting.date = PlantingDate) %>%
+  rename(tube = Tube)
+# altering seedlings - already done: deleted not planted, fixed LD, deleted bad lengths
+# deleting questionable seedlings
+master_wide <- master_wide %>%
+  filter(sapling.id != 69 &  sapling.id != 165 & sapling.id != 934 & sapling.id != 575 &
+         sapling.id !=900 & sapling.id != 933 & sapling.id != 1067) 
+# the seedlings were marked as not having tubes, when in reality they do have tubes
+# looking at the seedlings with tube notes
+bad.tubes <- master_wide %>%
+  select(!starts_with(c("Length", "Browse", "Live"))) %>%
+  pivot_longer(
+    cols = starts_with("Notes"),
+    names_to = "Visit",
+    values_to = "Notes") %>%
+  filter(grepl("no tube", Notes) | grepl("tube fell", Notes) | grepl("tube broke", Notes) |
+           grepl("tube tip", Notes) | grepl("uprooted by tube", Notes) |
+           grepl("uprooted tube", Notes) | grepl("tube came off", Notes) |
+           grepl("tube gone", Notes) | grepl("tube missing", Notes) |
+           grepl("removed tube", Notes) | grepl("took tube away", Notes) |
+           grepl("tube down", Notes) | grepl("tube removed", Notes) |
+           grepl("outside tube", Notes) | grepl("tube was down", Notes) |
+           grepl("no tube found", Notes) | grepl("tube fell over", Notes) |
+           grepl("tube fallen over", Notes) | grepl("not tube", Notes) |
+           grepl("tube fell off", Notes) | grepl("tube remove", Notes))
+# these are the tubes incorrectly coded as not having tubes, need to make that a Y tube
+N.bad.tubes <- bad.tubes %>%
+  filter(tube == "N") %>%
+# changing the N to a Y
+  mutate(tube = "Y")
+# grabbing these sapling.id
+N.bad.tubes2 <- N.bad.tubes %>%
+  select(sapling.id)
+N.bad.tubes3 <- left_join(N.bad.tubes2, master_wide, by = "sapling.id") %>%
+# I deleted to Y i altered, need to add it back
+  mutate(tube = "Y")
+# deleting these from master_wide
+master_wide <- anti_join(master_wide, N.bad.tubes2, by = "sapling.id")
+#combining them back together again
+master_wide <- rbind(master_wide, N.bad.tubes3)
+# completed fixing the tube Y or N
+
+# FINALIZED LONG DATA HERE, HAVE MASTER_WIDE CLEAN BY THIS POINT ----
 data_long <- master_wide %>%
   select(!starts_with("Notes")) %>%
   pivot_longer(
