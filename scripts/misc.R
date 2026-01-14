@@ -286,101 +286,38 @@ master_wide_altered <- master_wide %>%
 # got rid of the zombies that are 2 or more resurrections
 master_wide_altered <- anti_join(master_wide_altered, duplicate2, by = "sapling.id")
 
-# example?
-# Example data frame
-df <- data.frame(
-  a = c(0, 1, 0, 0),
-  b = c(0, 0, 2, 0),
-  c = c(1, 0, 0, 0)
-)
-
-# Function to check consecutive zeros in a row
-has_consec_zeros <- function(row) {
-  r <- rle(row == 0)
-  any(r$values & r$lengths > 1)
-}
-
-# Apply to each row
-df$multiple_zeros <- apply(df, 1, has_consec_zeros)
-
-print(df)
-
-# do the zombie has multiple 0s in a row. Specifically >2
-
-has_consec_zeros <- function(row) {
-  r <- rle(row == 0)
-  any(r$values & r$lengths >2)
-}
-
-# Apply to each row
-zombie$multiple_zeros <- apply(zombie, 1, has_consec_zeros)
-
-
-# this still includes the ones that died...
-# example
-# Example data frame
-
-# Example data
-df <- data.frame(
-  A = c(1, 0, 3, 5, 0, 2),
-  B = c(0, 0, 0, 0, 0, 0),
-  C = c(0, 0, 4, 0, 0, 3),
-  D = c(0, 0, 0, 0, 0, 0),
-  E = c(1, 0, 0, 0, 1, 1)
-)
-
+# next step consecutive zeros vs true death
 # Function to check each row
-check_consecutive_zeros <- function(row) {
-  # Convert to logical: TRUE where zero
-  zero_flags <- row == 0
+check_row <- function(row_vals) {
+  # Convert to logical: TRUE if zero
+  is_zero <- row_vals == 0
   
-  # Find run lengths of consecutive zeros
-  r <- rle(zero_flags)
+  # Find lengths of consecutive runs
+  rle_zero <- rle(is_zero)
   
-  # Check if the last run is zeros and length >= 1
-  last_is_zero <- tail(r$values, 1) && tail(r$lengths, 1) >= 1
+  # Any run of 3+ zeros?
+  has_long_run <- any(rle_zero$values & rle_zero$lengths >= 3)
+  if (!has_long_run) return(FALSE)
   
-  # Check if last run length >= 2 (multiple consecutive zeros)
-  multiple_consecutive <- tail(r$values, 1) && tail(r$lengths, 1) >= 2
+  # Check if the ONLY long run is at the end
+  if (rle_zero$values[length(rle_zero$values)] && 
+      rle_zero$lengths[length(rle_zero$lengths)] >= 3) {
+    # If there is another long run earlier, still TRUE
+    earlier_long <- any(
+      head(rle_zero$values, -1) & head(rle_zero$lengths, -1) >= 3
+    )
+    return(earlier_long)
+  }
   
-  # Return TRUE if either condition is met
-  return(last_is_zero || multiple_consecutive)
+  return(TRUE)
 }
+az <- longdat %>%
+  pivot_wider(names_from = visit, values_from = data) %>%
+  select(sapling.id, starts_with("LiveDead"))
 
-# Apply to all rows
-df$ends_with_zeros <- apply(df, 1, check_consecutive_zeros)
-zombie$ends_with_zeros <- apply(zombie, 1, check_consecutive_zeros)
+result2 <- apply(az, 1, check_row)
+az$result <- result2
 
-print(df)
-
-# Example dataframe
-df <- data.frame(
-  A = c(1, 0, 0, 0, 2),
-  B = c(0, 0, 0, 0, 0),
-  C = c(3, 0, 0, 0, 0),
-  D = c(4, 1, 0, 0, 0)
-)
-
-# Function to check each row
-check_consecutive_zeros <- function(row) {
-  # Find positions of consecutive zeros
-  zero_runs <- rle(row == 0)
-  
-  # Check if there is a run of >= 2 zeros
-  has_consec <- any(zero_runs$values & zero_runs$lengths >= 2)
-  
-  # Check if the last run is zeros and goes to the end
-  ends_with_zeros <- tail(zero_runs$values, 1) && tail(zero_runs$lengths, 1) >= 2
-  
-  # Return TRUE only if consecutive zeros exist but don't go to the end
-  has_consec && !ends_with_zeros
-}
-
-# Apply to all rows
-result <- apply(df, 1, check_consecutive_zeros)
-result2 <- apply(zombie, 1, check_consecutive_zeros)
-# Show results
-zombie$result <- result2
 
 
 
