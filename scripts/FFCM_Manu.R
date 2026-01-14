@@ -428,7 +428,7 @@ master_wide <- master_wide %>%
   select(!starts_with("Browse")) %>%
   left_join(browse_numeric, by = "UniqueID")
 
-# FINALIZE MASTER_WIDE; MISC SEEDLINGS, BAD TUBES ----
+# FINALIZE MASTER_WIDE; MISC SEEDLINGS, BAD TUBES, ZOMBIES ----
 
 # renaming columns in master_wide so it matches later data
 master_wide <- master_wide %>%
@@ -464,9 +464,7 @@ bad.tubes <- master_wide %>%
            grepl("tube fell off", Notes) | grepl("tube remove", Notes))
 # these are the tubes incorrectly coded as not having tubes, need to make that a Y tube
 N.bad.tubes <- bad.tubes %>%
-  filter(tube == "N") %>%
-# changing the N to a Y
-  mutate(tube = "Y")
+  filter(tube == "N")
 # grabbing these sapling.id
 N.bad.tubes2 <- N.bad.tubes %>%
   select(sapling.id)
@@ -478,6 +476,163 @@ master_wide <- anti_join(master_wide, N.bad.tubes2, by = "sapling.id")
 #combining them back together again
 master_wide <- rbind(master_wide, N.bad.tubes3)
 # completed fixing the tube Y or N
+# So tubes are fixed by this point, other than when we look at growth and 
+# make the last time we look at length the last time the tube is fine
+
+# Zombie pt 1: getting rid of the zombies with 2 or more resurrections
+# first we must make master_wide long and pull out only the LiveDead columns
+
+zombie <- master_wide %>%
+select(sapling.id, site, species, starts_with("LiveDead"))
+
+# next step is to see when they died and came back to life
+zombie1 <- zombie %>%
+  filter(LiveDead_fall2019 == 0 & LiveDead_summer2020 == 1) %>%
+  select(sapling.id)
+
+
+write_xlsx(zombie1, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie1.xlsx')
+
+# please note fall2020 Belfast was not sampled, so I am excluding it from these files
+zombie2 <- zombie %>%
+  filter(LiveDead_summer2020 == 0 & LiveDead_fall2020 == 1) %>%
+  filter(site != "Belfast") %>%
+  select(sapling.id)
+
+write_xlsx(zombie2, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie2.xlsx')
+
+# please note fall2020 Belfast was not sampled, so I am excluding it from these files
+zombie3 <- zombie %>%
+  filter(LiveDead_fall2020 == 0 & LiveDead_summer2021 == 1) %>%
+  filter(site != "Belfast") %>%
+  select(sapling.id)
+
+write_xlsx(zombie3, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie3.xlsx')
+
+zombie4 <- zombie %>%
+  filter(LiveDead_summer2021 == 0 & LiveDead_fall2021 == 1) %>%
+  select(sapling.id)
+
+write_xlsx(zombie4, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie4.xlsx')
+
+zombie5 <- zombie %>%
+  filter(LiveDead_fall2021 == 0 & LiveDead_summer2022 == 1) %>%
+  select(sapling.id)
+
+write_xlsx(zombie5, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie5.xlsx')
+
+zombie6 <- zombie %>%
+  filter(LiveDead_summer2022 == 0 & LiveDead_fall2022 == 1) %>%
+  select(sapling.id)
+
+write_xlsx(zombie6, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie6.xlsx')
+
+zombie7 <- zombie %>%
+  filter(LiveDead_fall2022 == 0 & LiveDead_summer2023 == 1) %>%
+  select(sapling.id)
+
+write_xlsx(zombie7, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie7.xlsx')
+
+zombie8 <- zombie %>%
+  filter(LiveDead_summer2023 == 0 & LiveDead_fall2023 == 1) %>%
+  select(sapling.id)
+
+write_xlsx(zombie8, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie8.xlsx')
+
+zombie9 <- zombie %>%
+  filter(LiveDead_fall2023 == 0 & LiveDead_summer2024 == 1) %>%
+  select(sapling.id)
+
+write_xlsx(zombie9, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie9.xlsx')
+
+zombie10 <- zombie %>%
+  filter(LiveDead_summer2024 == 0 & LiveDead_fall2024 == 1) %>%
+  select(sapling.id)
+
+write_xlsx(zombie10, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\zombie10.xlsx')
+
+# Combining all the zombie files into one long file
+totalzombie <-rbind(zombie1, zombie2, zombie3, zombie4, zombie5, zombie6, zombie7, zombie8, zombie9, zombie10)
+
+# so totalzombie tells us the seedlings that died and came back to life aka resurrections
+# seedlings can come up multiple times if there are multiple resurrections
+duplicate <- totalzombie %>%
+  count(sapling.id) %>%
+  filter(n > 1) %>%
+# we decided to get rid of the seedlings that resurrected 2 or more times
+  select(sapling.id)
+# 63 seedlings that we are getting rid of 
+# LOOK INTO THESE SEEDLINGS, SEE IF IT INTRODUCES BIAS IN THE DATA
+master_wide <- anti_join(master_wide, duplicate, by = "sapling.id")
+
+# Zombie pt 2: get rid of the zombies that were dead 3 or more visits
+
+# need to differentiate between consecutive zeros vs true death
+# Function to check each row
+check_row <- function(row_vals) {
+  # Convert to logical: TRUE if zero
+  is_zero <- row_vals == 0
+  
+  # Find lengths of consecutive runs
+  rle_zero <- rle(is_zero)
+  
+  # Any run of 3+ zeros?
+  has_long_run <- any(rle_zero$values & rle_zero$lengths >= 3)
+  if (!has_long_run) return(FALSE)
+  
+  # Check if the ONLY long run is at the end
+  if (rle_zero$values[length(rle_zero$values)] && 
+      rle_zero$lengths[length(rle_zero$lengths)] >= 3) {
+    # If there is another long run earlier, still TRUE
+    earlier_long <- any(
+      head(rle_zero$values, -1) & head(rle_zero$lengths, -1) >= 3
+    )
+    return(earlier_long)
+  }
+  
+  return(TRUE)
+}
+
+# Need to have Belfast separate because wasn't sampled in fall 2020
+consec_zombie <- master_wide %>%
+  select(sapling.id, site, species, starts_with("LiveDead")) %>%
+  filter(site != "Belfast")
+
+result <- apply(consec_zombie, 1, check_row)
+consec_zombie$result <- result
+
+#pulling out the sapling.id of zombies with 3 or more visits dead
+consec_zombie <- consec_zombie %>%
+  filter(result == "TRUE") %>%
+  select(sapling.id)
+# now looking at Belfast
+
+Belfast_consec_zombie <- master_wide %>%
+  select(sapling.id, site, species, starts_with("LiveDead")) %>%
+  filter(site == "Belfast") %>%
+  select(!LiveDead_fall2020)
+
+result2 <- apply(Belfast_consec_zombie, 1, check_row)
+Belfast_consec_zombie$result <- result2
+
+#pulling out the sapling.id of zombies with 3 or more visits dead
+Belfast_consec_zombie <- Belfast_consec_zombie %>%
+  filter(result == "TRUE") %>%
+  select(sapling.id)
+  
+  
+# deleting these from master_wide
+master_wide <- anti_join(master_wide, consec_zombie, by = "sapling.id")
+master_wide <- anti_join(master_wide, Belfast_consec_zombie, by = "sapling.id")
+
+# finalized master wide maybe?
+
+
+
+
+
+
+
 
 # FINALIZED LONG DATA HERE, HAVE MASTER_WIDE CLEAN BY THIS POINT ----
 data_long <- master_wide %>%
