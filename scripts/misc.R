@@ -519,5 +519,142 @@ tube.final <- final_live_long %>%
   filter(sample.period <= cutoff2)
 
 
+# Prism data attempt ----
+
+
+
+
+surry.prism <- read_excel("C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\Surry_PRISM.xlsx")
+mdi.prism <- read_excel("C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\MDI_PRISM.xlsx")
+belfast.prism <- read_excel("C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\Belfast_PRISM.xlsx")
+schoodic.prism <- read_excel("C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\Schoodic_PRISM.xlsx")
+
+surry.prism <- surry.prism %>%
+  mutate(Site = "Surry")
+mdi.prism <- mdi.prism %>%
+  mutate(Site = "MDI")
+belfast.prism <- belfast.prism %>%
+  mutate(Site = "Belfast")
+schoodic.prism <- schoodic.prism %>%
+  mutate(Site = "Schoodic")
+
+site.data <- rbind(surry.prism, mdi.prism, belfast.prism, schoodic.prism) %>%
+  rename(ppt = `ppt (inches)`) %>%
+  rename(tmin = `tmin (degrees F)`) %>%
+  rename(tmax = `tmax (degrees F)`) %>%
+  mutate(Year = case_when (
+    str_detect(Date, "2019") ~ "2019",
+    str_detect(Date, "2020") ~ "2020",
+    str_detect(Date, "2021") ~ "2021",
+    str_detect(Date, "2022") ~ "2022",
+    str_detect(Date, "2023") ~ "2023",
+    str_detect(Date, "2024") ~ "2024"
+  ))
+  
+
+
+surry.prism <- surry.prism %>%
+  rename(ppt = `ppt (inches)`) %>%
+  rename(tmin = `tmin (degrees F)`) %>%
+  rename(tmax = `tmax (degrees F)`) %>%
+  mutate(Year = case_when (
+    str_detect(Date, "2019") ~ "2019",
+    str_detect(Date, "2020") ~ "2020",
+    str_detect(Date, "2021") ~ "2021",
+    str_detect(Date, "2022") ~ "2022",
+    str_detect(Date, "2023") ~ "2023",
+    str_detect(Date, "2024") ~ "2024"
+  ))
+
+ggplot(surry.prism, aes(x = Date, y = ppt)) +
+    geom_line()
+surry.average.annual.precip <- surry.prism %>%
+  select(Date, Year, ppt) %>%
+  group_by(Year) %>%
+  summarise(surry.avg.precip = mean(ppt, na.rm = TRUE))
+
+mdi.prism <- mdi.prism %>%
+  rename(ppt = `ppt (inches)`) %>%
+  rename(tmin = `tmin (degrees F)`) %>%
+  rename(tmax = `tmax (degrees F)`) %>%
+  mutate(Year = case_when (
+    str_detect(Date, "2019") ~ "2019",
+    str_detect(Date, "2020") ~ "2020",
+    str_detect(Date, "2021") ~ "2021",
+    str_detect(Date, "2022") ~ "2022",
+    str_detect(Date, "2023") ~ "2023",
+    str_detect(Date, "2024") ~ "2024"
+  ))
+
+mdi.average.annual.precip <- mdi.prism %>%
+  select(Date, Year, ppt) %>%
+  group_by(Year) %>%
+  summarise(mdi.avg.precip = mean(ppt, na.rm = TRUE))
+
+
+belfast.prism <- belfast.prism %>%
+  rename(ppt = `ppt (inches)`) %>%
+  rename(tmin = `tmin (degrees F)`) %>%
+  rename(tmax = `tmax (degrees F)`) %>%
+  mutate(Year = case_when (
+    str_detect(Date, "2019") ~ "2019",
+    str_detect(Date, "2020") ~ "2020",
+    str_detect(Date, "2021") ~ "2021",
+    str_detect(Date, "2022") ~ "2022",
+    str_detect(Date, "2023") ~ "2023",
+    str_detect(Date, "2024") ~ "2024"
+  ))
+
+belfast.average.annual.precip <- belfast.prism %>%
+  select(Date, Year, ppt) %>%
+  group_by(Year) %>%
+  summarise(belfast.avg.precip = mean(ppt, na.rm = TRUE))
+
+
+schoodic.prism <- schoodic.prism %>%
+  rename(ppt = `ppt (inches)`) %>%
+  rename(tmin = `tmin (degrees F)`) %>%
+  rename(tmax = `tmax (degrees F)`) %>%
+  mutate(Year = case_when (
+    str_detect(Date, "2019") ~ "2019",
+    str_detect(Date, "2020") ~ "2020",
+    str_detect(Date, "2021") ~ "2021",
+    str_detect(Date, "2022") ~ "2022",
+    str_detect(Date, "2023") ~ "2023",
+    str_detect(Date, "2024") ~ "2024"
+  ))
+
+schoodic.average.annual.precip <- schoodic.prism %>%
+  select(Date, Year, ppt) %>%
+  group_by(Year) %>%
+  summarise(schoodic.avg.precip = mean(ppt, na.rm = TRUE))
+
+annual.precip <- left_join(surry.average.annual.precip, mdi.average.annual.precip, by = "Year") %>%
+  left_join(annual.precip, belfast.average.annual.precip, by = "Year")
+
+# Put all data frames in a list
+dfs <- list(schoodic.average.annual.precip, surry.average.annual.precip, mdi.average.annual.precip, belfast.average.annual.precip)
+
+# Perform full join on all data frames by "id"
+annual.precip <- Reduce(function(x, y) full_join(x, y, by = "Year"), dfs) %>%
+  filter(!is.na(Year)) %>%
+  pivot_longer(
+    cols = c("schoodic.avg.precip", "surry.avg.precip", "mdi.avg.precip", "belfast.avg.precip"),
+    names_to = "Visit",
+    values_to = "Avg.precip") %>%
+  mutate(
+    Site = case_when(
+      str_detect(Visit, "schoodic") ~ "Schoodic",
+      str_detect(Visit, "surry") ~ "Surry",
+      str_detect(Visit, "mdi") ~ "MDI",
+      str_detect(Visit, "belfast") ~ "Belfast"
+    )
+  ) %>%
+  select(-Visit)
+
+ggplot(annual.precip, aes(x = Year, y = Avg.precip, group = Site, colour = Site)) +
+  geom_line() + geom_point()
+
+
 
 

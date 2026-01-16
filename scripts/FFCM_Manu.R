@@ -626,9 +626,14 @@ master_wide <- anti_join(master_wide, consec_zombie, by = "sapling.id")
 master_wide <- anti_join(master_wide, Belfast_consec_zombie, by = "sapling.id")
 
 # finalized master wide maybe?
-
-
-
+# looking at the deleted zombies and what spp/site they are 
+deleted.zombies <- rbind(duplicate, consec_zombie, Belfast_consec_zombie) 
+# pulled from zombie and not master_wide because it had already been deleted from master_wide
+deleted.zombies <- left_join(deleted.zombies, zombie, by = "sapling.id") %>%
+  group_by(species, site) %>%
+  summarise(n = n())
+ggplot(deleted.zombies, aes(x = species)) +
+  geom_bar()
 
 
 
