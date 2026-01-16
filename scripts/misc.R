@@ -523,6 +523,10 @@ tube.final <- final_live_long %>%
 
 
 
+# they want:
+# max and min temp (what was the most extreme temp these plants saw during the study)
+# average summer and winter temps over the 5 years
+# average annual precipitation
 
 surry.prism <- read_excel("C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\Surry_PRISM.xlsx")
 mdi.prism <- read_excel("C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\MDI_PRISM.xlsx")
@@ -654,6 +658,51 @@ annual.precip <- Reduce(function(x, y) full_join(x, y, by = "Year"), dfs) %>%
 
 ggplot(annual.precip, aes(x = Year, y = Avg.precip, group = Site, colour = Site)) +
   geom_line() + geom_point()
+
+site.summary <- site.data %>%
+  filter(!is.na(Year)) %>%
+  group_by(Site, Year) %>%
+  summarize(max.temp = max(tmax, na.rm = TRUE), 
+            min.temp = min(tmin, na.rm = TRUE),
+            avg.precip = mean(ppt, na.rm = TRUE))
+
+ggplot(site.summary, aes(x = Year, y = min.temp, group = Site, colour = Site)) +
+  geom_line() + geom_point() +
+  labs(x = "Year", y = "Minimum Temp (F)")
+
+ggplot(site.summary, aes(x = Year, y = max.temp, group = Site, colour = Site)) +
+  geom_line() + geom_point() +
+  labs(x = "Year", y = "Maximum Temp (F)")
+
+# Looking at average summer and winter temps; 
+# summer = June, July August; winter = Dec, Jan, Feb (Note december of the previous year)
+# Still going to grab the 2019 winter data even though it didn't impact the seedlings 
+# because we are looking at the site info... won't re-download until hear approval
+
+seasonal.temp <- site.data %>%
+  filter(str_detect(Date, "-01-") | str_detect(Date, "-02-") | str_detect(Date, "-06-") |
+           str_detect(Date, "-07-") | str_detect(Date, "-08-") | str_detect(Date, "-12-")) %>%
+  mutate(Season = case_when(
+    str_detect(Date, "-01-") | str_detect(Date, "-02") | str_detect(Date, "12") ~ "Winter",
+    str_detect(Date, "-06") | str_detect(Date, "-07") | str_detect(Date, "-08") ~ "Summer"
+  ))
+
+seasonal.summary <- seasonal.temp %>%
+  filter(!is.na(Year)) %>%
+  group_by(Site, Year, Season) %>%
+  summarise(avg.min = mean(tmin),
+            avg.max = mean(tmax))
+
+sum.precip <- site.data %>%
+  filter(!is.na(Year)) %>%
+  select(Year, Site, ppt) %>%
+  group_by(Year, Site) %>%
+  summarise(annual = sum(ppt))
+
+ggplot(sum.precip, aes(x = Year, y = annual, fill = Site)) +
+geom_bar(position='dodge', stat='identity')  +
+  labs(y = "Annual precipitation")
+
 
 
 
