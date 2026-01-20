@@ -462,22 +462,22 @@ bad.tubes <- master_wide %>%
            grepl("no tube found", Notes) | grepl("tube fell over", Notes) |
            grepl("tube fallen over", Notes) | grepl("not tube", Notes) |
            grepl("tube fell off", Notes) | grepl("tube remove", Notes))
-# these are the tubes incorrectly coded as not having tubes, need to make that a Y tube
+# below are the tubes incorrectly coded as not having tubes, need to make that a Y tube
 N.bad.tubes <- bad.tubes %>%
   filter(tube == "N")
 # grabbing these sapling.id
 N.bad.tubes2 <- N.bad.tubes %>%
   select(sapling.id)
 N.bad.tubes3 <- left_join(N.bad.tubes2, master_wide, by = "sapling.id") %>%
-# I deleted to Y i altered, need to add it back
   mutate(tube = "Y")
-# deleting these from master_wide
+# deleting these from master_wide, so I can combine them back with corrected tube column
 master_wide <- anti_join(master_wide, N.bad.tubes2, by = "sapling.id")
 #combining them back together again
 master_wide <- rbind(master_wide, N.bad.tubes3)
 # completed fixing the tube Y or N
-# So tubes are fixed by this point, other than when we look at growth and 
-# make the last time we look at length the last time the tube is fine
+# So tubes are not finalized by this point. All we did was fix the incorrect columns
+# STILL NEED TO ALTER THE TUBES THAT WENT DOWN WHILE THE SEEDLING WAS STILL ALIVE
+# WILL DO THAT DOWN IN GROWTH BECAUSE THAT IS WHAT IS MOSTLY IMPACTED
 
 # Zombie pt 1: getting rid of the zombies with 2 or more resurrections
 # first we must make master_wide long and pull out only the LiveDead columns
@@ -640,24 +640,47 @@ ggplot(deleted.zombies, aes(x = species)) +
 
 
 # FINALIZED LONG DATA HERE, HAVE MASTER_WIDE CLEAN BY THIS POINT ----
-data_long <- master_wide %>%
+master_long <- master_wide %>%
   select(!starts_with("Notes")) %>%
   pivot_longer(
    cols = starts_with(c("Length", "Browse", "Live")),
-   names_to = "Visit",
-   values_to = "Data")
+   names_to = "visit",
+   values_to = "data") %>%
+  mutate(
+    measure = case_when(
+      str_detect(visit, "Length") ~ "length",
+      str_detect(visit, "Browse") ~ "browse",
+      str_detect(visit, "LiveDead") ~ "livedead",
+      str_detect(visit, "Total") ~ "growth"
+    )
+  ) %>%
+  # so I am making the visits their own number, so the beginning summer2019 is 0 and end fall 2024 5.5
+  # this was I can pull out each seedlings max sampling 
+  # that should have their final height and last sampling time
+  mutate(
+    sample.period = case_when(
+      str_detect(visit, "summer2019") ~ 0,
+      str_detect(visit, "fall2019") ~ 0.5,
+      str_detect(visit, "summer2020") ~ 1,
+      str_detect(visit, "fall2020") ~ 1.5,
+      str_detect(visit, "summer2021") ~ 2,
+      str_detect(visit, "fall2021") ~ 2.5,
+      str_detect(visit, "summer2022") ~ 3,
+      str_detect(visit, "fall2022") ~ 3.5,
+      str_detect(visit, "summer2023") ~ 4,
+      str_detect(visit, "fall2023") ~ 4.5,
+      str_detect(visit, "summer2024") ~ 5,
+      str_detect(visit, "fall2024") ~ 5.5
+    )
+  ) 
 
-write_xlsx(data_long, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\data_long.xlsx')
+write_xlsx(master_long, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\master_long.xlsx')
 
+# Misc, will probably delete ----
 #here is where I am pulling out the data needed for the manuscript
 # added measure (what type of data, sample.period (season), year)
 
-longdat <- read_excel("data/data_long.xlsx") %>% 
-  rename(sapling.id = UniqueID, planting.date = PlantingDate) %>% 
-  rename_with(tolower)
-write_xlsx(longdat, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\longdat.xlsx')
-
-
+# I think I will delete the below code
 longdat2 <- longdat %>%
   pivot_wider(names_from = visit, values_from = data) %>%
 # getting the growth in the fall since the summer of 2019. So total growth from the beginning at the end of the growing season.
@@ -736,5 +759,125 @@ ggplot(live, aes(x = species, y = perc)) +
   coord_flip() +
   ylim(0, 1)
   
+# EDITING TUBE AGAIN ----
 
-  
+tube.long <- master_long %>%
+  mutate(
+    sample.period = case_when(
+      str_detect(visit, "summer2019") ~ 0,
+      str_detect(visit, "fall2019") ~ 0.5,
+      str_detect(visit, "summer2020") ~ 1,
+      str_detect(visit, "fall2020") ~ 1.5,
+      str_detect(visit, "summer2021") ~ 2,
+      str_detect(visit, "fall2021") ~ 2.5,
+      str_detect(visit, "summer2022") ~ 3,
+      str_detect(visit, "fall2022") ~ 3.5,
+      str_detect(visit, "summer2023") ~ 4,
+      str_detect(visit, "fall2023") ~ 4.5,
+      str_detect(visit, "summer2024") ~ 5,
+      str_detect(visit, "fall2024") ~ 5.5
+    )
+  ) %>%
+  filter(grepl("LiveDead", visit))
+
+# bad.tubes again, but this time edited for the growth step later
+# also note I am using master_wide because I deleted Notes from master_long so the would all be numeric
+growth.bad.tubes <- master_wide %>%
+  select(!starts_with(c("Length", "Browse", "Live"))) %>%
+  pivot_longer(
+    cols = starts_with("Notes"),
+    names_to = "visit",
+    values_to = "Notes") %>%
+  filter(grepl("no tube", Notes) | grepl("tube fell", Notes) | grepl("tube broke", Notes) |
+           grepl("tube tip", Notes) | grepl("uprooted by tube", Notes) |
+           grepl("uprooted tube", Notes) | grepl("tube came off", Notes) |
+           grepl("tube gone", Notes) | grepl("tube missing", Notes) |
+           grepl("removed tube", Notes) | grepl("took tube away", Notes) |
+           grepl("tube down", Notes) | grepl("tube removed", Notes) |
+           grepl("outside tube", Notes) | grepl("tube was down", Notes) |
+           grepl("no tube found", Notes) | grepl("tube fell over", Notes) |
+           grepl("tube fallen over", Notes) | grepl("not tube", Notes) |
+           grepl("tube fell off", Notes) | grepl("tube remove", Notes)) %>%
+  # Making the visits numerical so I can grab the first one easier
+  mutate(
+    sample.period = case_when(
+      str_detect(visit, "summer2019") ~ 0,
+      str_detect(visit, "fall2019") ~ 0.5,
+      str_detect(visit, "summer2020") ~ 1,
+      str_detect(visit, "fall2020") ~ 1.5,
+      str_detect(visit, "summer2021") ~ 2,
+      str_detect(visit, "fall2021") ~ 2.5,
+      str_detect(visit, "summer2022") ~ 3,
+      str_detect(visit, "fall2022") ~ 3.5,
+      str_detect(visit, "summer2023") ~ 4,
+      str_detect(visit, "fall2023") ~ 4.5,
+      str_detect(visit, "summer2024") ~ 5,
+      str_detect(visit, "fall2024") ~ 5.5
+    )
+  ) %>%
+  group_by(sapling.id) %>%
+  summarize(first.down.tube = min(sample.period)) %>%
+  # I renamed this to sample.period so it would match the other data frame
+  # However, as a reminder, it is the first visit the tube went down
+  rename(sample.period = first.down.tube) 
+# AT THIS POINT growth.bad.tubes IS JUST WHEN THE TUBE WAS REMOVED; MIGHT HAVE BEEN WHEN SEEDLING WAS DEAD
+# need to pull out when the seedling was alive and the tube went down
+
+tubes.dead.down <- left_join(growth.bad.tubes, tube.long, by = c("sapling.id", "sample.period"))
+# OK so I found the firs time the tube went bad for each seedling and whether it was alive or dead
+# there are 163 tubes with notes
+tubes.down.seedling.alive <- tubes.dead.down %>%
+  filter(data == 1) %>%
+  select("sapling.id", "sample.period")
+# SO these are the true bad tubes! These are the seedlings we need to crop their growth
+# So only 79 bad tubes? 
+# format so it can be used to crop tube.long
+
+test <- tube.long %>%
+  left_join(tubes.down.seedling.alive, by = "sapling.id") %>%
+  filter(is.na(sample.period.y) | sample.period.x <= sample.period.y) %>%
+  select(-sample.period.y) %>%
+  rename(sample.period = sample.period.x)
+# need to ass back in the rest of the data (esp length) so we can use it for growth
+
+test2 <- test %>%
+  select("sapling.id", "sample.period")
+
+growth.long <- left_join(test2, master_long, by = c("sapling.id", "sample.period")) %>%
+  filter(measure != "browse")
+# So I believe this is where I need to switch to general growth stuff
+
+# GROWTH ----
+
+# so growth.long is the data cropped to where the tube went bad so I can find the growth
+
+# getting rid of NAs for length and ) for livedead. Should be left with the living
+alive.growth.long <- growth.long %>%
+  filter(complete.cases(.) & data > 0) 
+
+final.sample.growth.long <- alive.growth.long %>%
+  group_by(sapling.id) %>%
+  summarize(sample.period = max(sample.period))
+
+# This should pull back the rest of the data, so the final sampling and final height
+b <- left_join(final.sample.growth.long, alive.growth.long, by = c("sapling.id", "sample.period")) 
+
+# trying to get the initial lengths from the seedlings
+inital.wide <- master_wide %>%
+  select(sapling.id, Length_summer2019)
+
+b2 <- b %>%
+  select(!visit) %>%
+  pivot_wider(names_from = measure, values_from = data) %>%
+  # with this join I am grabbing the initial length for each seedling
+  left_join(inital.wide, by = "sapling.id") %>%
+  # here I am finding how much it has grown until it dies
+  mutate(growth = length - Length_summer2019) %>%
+  # cleaning up the columns, grabbing what we need
+  mutate(site.plot = paste(site, plot, sep = "_")) %>%
+  select(!c(site, plot, planting.date, cell)) %>%
+  rename(years.grown = sample.period) %>%
+  relocate(years.grown, .after = growth) %>%
+  relocate(site.plot, .after = sapling.id)
+
+

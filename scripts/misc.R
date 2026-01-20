@@ -89,9 +89,9 @@ a <- longdat %>%
 master_wide <- read_excel("data/master_wide.xlsx")
 
 tube.info <- master_wide %>%
-  select(UniqueID, Site, Species, Tube) %>%
-  filter(Tube == "Y") %>%
-  group_by(Site, Species) %>%
+  select(sapling.id, site, species, tube) %>%
+  filter(tube == "Y") %>%
+  group_by(site, species) %>%
   summarize(n = n())
 
 plant.info <- master_wide %>%
@@ -113,7 +113,7 @@ plant.info <- master_wide %>%
   
 
 
-bad.tubes <- master_wide %>%
+original.bad.tubes <- master_wide %>%
   select(!starts_with(c("Length", "Browse", "Live"))) %>%
   pivot_longer(
     cols = starts_with("Notes"),
@@ -173,7 +173,7 @@ tube.long <- longdat %>%
   ) %>%
   filter(grepl("LiveDead", visit))
 
-tubes.dead.down <- left_join(bad.tubes, tube.long, by = c("sapling.id", "sample.period"))
+tubes.dead.down <- left_join(original.bad.tubes, tube.long, by = c("sapling.id", "sample.period"))
 # OK so I found the firs time the tube went bad for each seedling and whether it was alive or dead
 # there are 163 tubes with notes
 tubes.down.seedling.alive <- tubes.dead.down %>%
@@ -472,8 +472,9 @@ a.bad.tube <- tubes.down.seedling.alive %>%
   )
 # so anything after that sample period should be ignored
 
+
 test.tube <- tube.long %>%
-  left_join(bad.tubes, by = "sapling.id") %>%
+  left_join(original.bad.tubes, by = "sapling.id") %>%
   filter(is.na(sample.period.y) | sample.period.x <= sample.period.y) %>%
   select(-sample.period.y) %>%
   rename(sample.period = sample.period.x)
