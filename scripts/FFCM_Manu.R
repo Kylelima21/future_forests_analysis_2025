@@ -276,11 +276,18 @@ surry <- surry %>%
 # STEP 5: COMBINE SITES
 master <- rbind(mdi, schoodic, belfast, surry)
 
+
+
 # ADD UNIQUEID, CLEAN SPECIES, TUBE, BROWSE ----
 
 # STEP 6: ADD A UNIQUE ID COLUMN
 
 master <- master %>% mutate(UniqueID = 1:n(), .before = Site)
+
+# are there any duplicates?
+doubles <- master %>%
+  count(UniqueID) %>%
+  filter(n > 1)
 #table(master$Species)
 #Note: Noticed there is r oak, r. oak, and r.oak. Fixed
 master <- master %>%
@@ -306,7 +313,9 @@ master_wide <- master %>%
               'Browse_summer2022', 'Browse_fall2022', 'Browse_summer2023', 
               'Browse_fall2023', 'Browse_summer2024', 'Browse_fall2024'), as.character)
 
-#str(master_wide)
+doubles <- master_wide %>%
+  count(UniqueID) %>%
+  filter(n > 1)
 
 # DELETE THE NOT PLANTED SEEDLINGS ----
 #Found that they were not planted in the notes, and they never have any data
@@ -327,6 +336,10 @@ master_wide <- master_wide %>%
 # Added a LiveDead column for summer2019 so I can graph the different starting numbers of spp
   mutate(LiveDead_summer2019 = "L", .before = Length_fall2019)
 # remember that the filter will delete the NAs, so manually kept them in
+
+doubles <- master_wide %>%
+  count(UniqueID) %>%
+  filter(n > 1)
 
 #This is really where I start to differ from tidy markdown
 #Cleaning everything up now instead of later, so far tube is clean
@@ -359,6 +372,10 @@ master_wide <- master_wide %>%
   select(!starts_with("Live")) %>%
   left_join(cleanLiveDead, by = "UniqueID")
 
+doubles <- master_wide %>%
+  count(UniqueID) %>%
+  filter(n > 1)
+
 # CLEAN LENGTH ----
 
 # STEP 8: CLEAN LENGTH
@@ -390,6 +407,10 @@ master_wide <- rbind(alive19,dead19)
 master_wide <- master_wide %>%
   filter(UniqueID != 1382 & UniqueID != 808 & UniqueID != 11 & UniqueID != 1227)
 
+doubles <- master_wide %>%
+  count(UniqueID) %>%
+  filter(n > 1)
+
 # PLEASE NOTE I DID NOT DELETE ANY ZOMBIE SEEDLINGS
 
 # MAKING DATA LONG, COLUMNS NUMERIC ----
@@ -412,6 +433,10 @@ master_wide <- master_wide %>%
   select(!starts_with("Live")) %>%
   left_join(live_numeric, by = "UniqueID")
 
+doubles <- master_wide %>%
+  count(UniqueID) %>%
+  filter(n > 1)
+
 browse_numeric <- master_wide %>%
   #pulling out browse and making 1,0
   select(UniqueID, starts_with("Browse")) %>%
@@ -427,6 +452,9 @@ browse_numeric <- master_wide %>%
 master_wide <- master_wide %>%
   select(!starts_with("Browse")) %>%
   left_join(browse_numeric, by = "UniqueID")
+doubles <- master_wide %>%
+  count(UniqueID) %>%
+  filter(n > 1)
 
 # FINALIZE MASTER_WIDE; MISC SEEDLINGS, BAD TUBES, ZOMBIES ----
 
@@ -467,13 +495,25 @@ N.bad.tubes <- bad.tubes %>%
   filter(tube == "N")
 # grabbing these sapling.id
 N.bad.tubes2 <- N.bad.tubes %>%
-  select(sapling.id)
+  select(sapling.id) %>%
+  distinct(sapling.id, .keep_all = TRUE)
+
 N.bad.tubes3 <- left_join(N.bad.tubes2, master_wide, by = "sapling.id") %>%
   mutate(tube = "Y")
 # deleting these from master_wide, so I can combine them back with corrected tube column
 master_wide <- anti_join(master_wide, N.bad.tubes2, by = "sapling.id")
+
+doubles <- master_wide %>%
+  count(sapling.id) %>%
+  filter(n > 1)
+
 #combining them back together again
 master_wide <- rbind(master_wide, N.bad.tubes3)
+
+doubles <- master_wide %>%
+  count(sapling.id) %>%
+  filter(n > 1)
+
 # completed fixing the tube Y or N
 # So tubes are not finalized by this point. All we did was fix the incorrect columns
 # STILL NEED TO ALTER THE TUBES THAT WENT DOWN WHILE THE SEEDLING WAS STILL ALIVE
@@ -565,6 +605,10 @@ duplicate <- totalzombie %>%
 # LOOK INTO THESE SEEDLINGS, SEE IF IT INTRODUCES BIAS IN THE DATA
 master_wide <- anti_join(master_wide, duplicate, by = "sapling.id")
 
+doubles <- master_wide %>%
+  count(sapling.id) %>%
+  filter(n > 1)
+
 # Zombie pt 2: get rid of the zombies that were dead 3 or more visits
 
 # need to differentiate between consecutive zeros vs true death
@@ -623,8 +667,16 @@ Belfast_consec_zombie <- Belfast_consec_zombie %>%
   
 # deleting these from master_wide
 master_wide <- anti_join(master_wide, consec_zombie, by = "sapling.id")
+
+doubles <- master_wide %>%
+  count(sapling.id) %>%
+  filter(n > 1)
+
 master_wide <- anti_join(master_wide, Belfast_consec_zombie, by = "sapling.id")
 
+doubles <- master_wide %>%
+  count(sapling.id) %>%
+  filter(n > 1)
 # finalized master wide maybe?
 # looking at the deleted zombies and what spp/site they are 
 deleted.zombies <- rbind(duplicate, consec_zombie, Belfast_consec_zombie) 
@@ -637,8 +689,6 @@ ggplot(deleted.zombies, aes(x = species)) +
 
 # master_wide is complete!
 write_xlsx(master_wide, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\master_wide.xlsx')
-
-
 
 
 # FINALIZED LONG DATA HERE, HAVE MASTER_WIDE CLEAN BY THIS POINT ----
@@ -684,22 +734,6 @@ master_wide <- read_excel("data/master_wide.xlsx")
 master_long <- read_excel("data/master_long.xlsx")
 
 tube.long <- master_long %>%
-  mutate(
-    sample.period = case_when(
-      str_detect(visit, "summer2019") ~ 0,
-      str_detect(visit, "fall2019") ~ 0.5,
-      str_detect(visit, "summer2020") ~ 1,
-      str_detect(visit, "fall2020") ~ 1.5,
-      str_detect(visit, "summer2021") ~ 2,
-      str_detect(visit, "fall2021") ~ 2.5,
-      str_detect(visit, "summer2022") ~ 3,
-      str_detect(visit, "fall2022") ~ 3.5,
-      str_detect(visit, "summer2023") ~ 4,
-      str_detect(visit, "fall2023") ~ 4.5,
-      str_detect(visit, "summer2024") ~ 5,
-      str_detect(visit, "fall2024") ~ 5.5
-    )
-  ) %>%
   filter(grepl("LiveDead", visit))
 
 # bad.tubes again, but this time edited for the growth step later
@@ -746,11 +780,18 @@ growth.bad.tubes <- master_wide %>%
 # need to pull out when the seedling was alive and the tube went down
 
 tubes.dead.down <- left_join(growth.bad.tubes, tube.long, by = c("sapling.id", "sample.period"))
+doubles.tube <- tubes.dead.down %>%
+  count(sapling.id) %>%
+  filter(n > 1)
 # OK so I found the firs time the tube went bad for each seedling and whether it was alive or dead
 # there are 163 tubes with notes
 tubes.down.seedling.alive <- tubes.dead.down %>%
   filter(data == 1) %>%
   select("sapling.id", "sample.period")
+
+doubles.tube <- tubes.down.seedling.alive %>%
+  count(sapling.id) %>%
+  filter(n > 1)
 # SO these are the true bad tubes! These are the seedlings we need to crop their growth
 # So only 79 bad tubes? 
 # format so it can be used to crop tube.long
@@ -760,6 +801,7 @@ test <- tube.long %>%
   filter(is.na(sample.period.y) | sample.period.x <= sample.period.y) %>%
   select(-sample.period.y) %>%
   rename(sample.period = sample.period.x)
+
 # need to add back in the rest of the data (esp length) so we can use it for growth
 # struggling a bit... going to export test to see what I can do.
 
@@ -777,7 +819,7 @@ write_xlsx(test, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFC
 
 # I can create a df with what i do have, then refocus on growth (need a win)
 
-final.format <- master_wide %>%
+finalformat <- master_wide %>%
   select(sapling.id, site, plot, species, tube, LiveDead_fall2024) %>%
   mutate(site.plot = paste(site, plot, sep = "_")) %>%
   relocate(site.plot, .after = sapling.id) %>%
@@ -787,6 +829,9 @@ final.format <- master_wide %>%
     species == "r.oak" | species == "w.spruce" | species == "w.pine" ~ "local",
     species == "ch.oak" | species == "r.cedar" | species == "w.oak" ~ "maine"), .before = tube)
 
+doubles <- finalformat %>%
+  count(sapling.id) %>%
+  filter(n > 1)
 # ok now I need total.growth, max.growth, years.grown
 # the most important part of test is the sample period ans sapling id; at this point I just need length
 
@@ -810,19 +855,38 @@ final.length <- alive.draft %>%
   rename(final_length = data) %>%
   select(!c(visit, measure))
 
-inital.length <- alive.draft %>%
-  filter(sample.period == 0) %>%
-  rename(inital_length = data) %>%
-  select(c(sapling.id, inital_length))
+doubles <- final.length %>%
+  count(sapling.id) %>%
+  filter(n > 1)
 
-growth <- left_join(final.length, inital.length, by = "sapling.id")  
+initial.length <- alive.draft %>%
+  filter(sample.period == 0) %>%
+  rename(initial_length = data) %>%
+  select(c(sapling.id, initial_length))
+
+doubles <- initial.length %>%
+  count(sapling.id) %>%
+  filter(n > 1)
+
+growth <- left_join(final.length, initial.length, by = "sapling.id")  
+
+doubles.growth <- growth %>%
+  count(sapling.id) %>%
+  filter(n > 1)
+
+# growth2 has one less observation than growth. makes me nervous...
 
 total.growth <- growth %>%
-  mutate(total_growth = final_length - inital_length) %>%
+  mutate(total_growth = final_length - initial_length) %>%
   select(sapling.id, sample.period, total_growth)
 
 # have total growth! until the last time it was alive!
-final.format <- left_join(final.format, total.growth, by = "sapling.id")
+finalformat <- left_join(finalformat, total.growth, by = "sapling.id")
+
+doubles <- finalformat %>%
+  count(sapling.id) %>%
+  filter(n > 1)
+# trying this another way
 
 # I have realized the final.format livedead is wrong? or not? because we cropped the ones with tubes but they are alive after that
 
@@ -831,25 +895,50 @@ max.height <- alive.draft %>%
   filter(data == max(data, na.rm = TRUE)) %>%
   ungroup() %>%
   rename(max_length = data) %>%
-  select(!c(visit, measure))
+  select(!c(visit, measure)) %>%
+  group_by(sapling.id) %>%
+  filter(sample.period == min(sample.period, na.rm = TRUE))
 
-# I already have a df with the initial length!
-max.growth <- left_join(max.height, inital.length, by = "sapling.id")  
+# OK I have duplicates here because sometimes the max height was the same multiple years. Just need to grab it
+
+max.growth <- left_join(max.height, initial.length, by = "sapling.id")  
+
+# I got that warning about many-to-many relationships
+doubles <- max.growth %>%
+  count(sapling.id) %>%
+  filter(n > 1)
+# uh oh
+
+
+
 total.max.growth <- max.growth %>%
-  mutate(max_growth = max_length - inital_length) %>%
+  mutate(max_growth = max_length - initial_length) %>%
   select(sapling.id, max_growth)
 
+doubles <- total.max.growth %>%
+  count(sapling.id) %>%
+  filter(n > 1)
+
+
 # adding the growth from the intitial length to the maximum length
-final.format <- left_join(final.format, total.max.growth, by = "sapling.id") 
+finalformat <- left_join(finalformat, total.max.growth, by = "sapling.id") 
+
+doubles <- finalformat %>%
+  count(sapling.id) %>%
+  filter(n > 1)
 
 # cleaning columns
 
-final.format <- final.format %>%
-  rename(alive2024 = LiveDead_fall2024, total.growth = total_growth, max.growth = max_growth)
+finalformat <- finalformat %>%
+  rename(alive2024 = LiveDead_fall2024, total.growth = total_growth, 
+         max.growth = max_growth, years.grown = sample.period)
 
+# are there duplicates, is that what is happening?
+# test has duplicates because it is long
 
+# maybe tubes.down.seedlings.alive has duplicates?
 
-
+write_xlsx(finalformat, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\finalformat.xlsx')
 
 
 

@@ -520,6 +520,175 @@ tube.final <- final_live_long %>%
   filter(sample.period <= cutoff2)
 
 
+
+# another attempt
+
+## this is older attempts
+test2 <- test %>%
+  select("sapling.id", "sample.period")
+
+growth.long <- left_join(test2, master_long, by = c("sapling.id", "sample.period")) %>%
+  filter(measure != "browse")
+# So I believe this is where I need to switch to general growth stuff
+
+# GROWTH ----
+
+# so growth.long is the data cropped to where the tube went bad so I can find the growth
+
+# getting rid of NAs for length and ) for livedead. Should be left with the living
+alive.growth.long <- growth.long %>%
+  filter(complete.cases(.) & data > 0) 
+
+# then grabbed the final time it was alive
+final.sample.growth.long <- alive.growth.long %>%
+  group_by(sapling.id) %>%
+  summarize(sample.period = max(sample.period))
+
+# This should pull back the rest of the data, so the final sampling and final height
+b <- left_join(final.sample.growth.long, alive.growth.long, by = c("sapling.id", "sample.period")) 
+
+# trying to get the initial lengths from the seedlings
+inital.wide <- master_wide %>%
+  select(sapling.id, Length_summer2019)
+# this is not working so trying something else. make a df that looks exactly the same only has the initial growth akak sample.period 0
+c <- master_long %>%
+  filter(sample.period == 0.0) %>%
+  relocate(sample.period, .before = site)
+
+# then I just need to combine them, correct? because they have the same columns and different data? But c has 1 less variable? why?
+d <- rbind(b, c)
+
+#home stretch, now I just have to have their initial and final and subtract
+
+e <- d %>%
+  filter(measure == "length") %>%
+  select(!c(visit, measure)) 
+
+e.initial <- e %>%
+  filter(sample.period == 0) %>%
+  rename(initial.length = data)
+
+e.final <- e %>%
+  filter(sample.period != 0) %>%
+  rename(final.length = data)
+
+
+
+
+b2 <- b %>%
+  select(!visit) %>%
+  pivot_wider(names_from = measure, values_from = data) %>%
+  # with this join I am grabbing the initial length for each seedling
+  left_join(inital.wide, by = "sapling.id") %>%
+  # here I am finding how much it has grown until it dies
+  mutate(growth = length - Length_summer2019) %>%
+  # cleaning up the columns, grabbing what we need
+  mutate(site.plot = paste(site, plot, sep = "_")) %>%
+  select(!c(site, plot, planting.date, cell)) %>%
+  rename(years.grown = sample.period) %>%
+  relocate(years.grown, .after = growth) %>%
+  relocate(site.plot, .after = sapling.id)
+
+
+### also old code i refuse to delete
+# Misc, will probably delete ----
+#here is where I am pulling out the data needed for the manuscript
+# added measure (what type of data, sample.period (season), year)
+
+# I think I will delete the below code
+longdat2 <- longdat %>%
+  pivot_wider(names_from = visit, values_from = data) %>%
+  # getting the growth in the fall since the summer of 2019. So total growth from the beginning at the end of the growing season.
+  # Unsure if I should also be doing this for the spring
+  mutate(TotalGrowth_fall2019 = Length_fall2019 - Length_summer2019) %>%
+  mutate(TotalGrowth_fall2020 = Length_fall2020 - Length_summer2019) %>%
+  mutate(TotalGrowth_fall2021 = Length_fall2021 - Length_summer2019) %>%
+  mutate(TotalGrowth_fall2022 = Length_fall2022 - Length_summer2019) %>%
+  mutate(TotalGrowth_fall2023 = Length_fall2023 - Length_summer2019) %>%
+  mutate(TotalGrowth_fall2024 = Length_fall2024 - Length_summer2019) %>%
+  pivot_longer(
+    cols = starts_with(c("Length", "Browse", "Live", "Total")),
+    names_to = "visit",
+    values_to = "data") %>%
+  mutate(
+    measure = case_when(
+      str_detect(visit, "Length") ~ "length",
+      str_detect(visit, "Browse") ~ "browse",
+      str_detect(visit, "LiveDead") ~ "livedead",
+      str_detect(visit, "Total") ~ "growth"
+    )
+  ) %>%
+  mutate(
+    sample.period = case_when(
+      str_detect(visit, "fall") ~ "fall",
+      str_detect(visit, "summer") ~ "summer"
+    )
+  ) %>%
+  mutate(
+    year = case_when (
+      str_detect(visit, "2019") ~ "2019",
+      str_detect(visit, "2020") ~ "2020",
+      str_detect(visit, "2021") ~ "2021",
+      str_detect(visit, "2022") ~ "2022",
+      str_detect(visit, "2023") ~ "2023",
+      str_detect(visit, "2024") ~ "2024",
+    )
+  ) %>%
+  select(-visit) %>%
+  pivot_wider(names_from = measure, values_from = data) %>% 
+  mutate(region = case_when(
+    species == "tulip" | species == "s.gum" ~ "southern",
+    species == "r.oak" | species == "w.spruce" | species == "w.pine" ~ "local",
+    species == "ch.oak" | species == "r.cedar" | species == "w.oak" ~ "maine"), .before = tube)
+
+write_xlsx(longdat2, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\longdat2.xlsx')
+
+
+# since we only care if it was alive at the end of the study & growth that is what i kept
+clean24 <- longdat2 %>%
+  select(sapling.id, site, species, region, tube, sample.period, year, livedead, growth) %>%
+  filter(sample.period == "fall" & year == "2024") %>%
+  select(-c(sample.period, year))
+
+write_xlsx(clean24, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\clean24.xlsx')
+
+# Now I am looking for zombie seedlings aka the seedlings that were at one point marked dead and then later alive
+# Important to remember that Belfast was not visited in the fall of 2020, so excluding Belfast 
+
+
+# I assume we will exclude the seedlings that died and came back to life 2 times or more? 
+# it is only 63 seedlings, which is really exciting
+
+# quick survival graph
+
+live <- clean24 %>%
+  select(species, livedead) %>%
+  group_by(species) %>%
+  summarize(n = n(),
+            live = sum(livedead)) %>%
+  mutate(perc = live/n)
+
+ggplot(live, aes(x = species, y = perc)) +
+  geom_col()+
+  labs(title = "Survival of Seedlings (5 years)", y = "Survival (%)", x = "Species") +
+  coord_flip() +
+  ylim(0, 1)
+
+## misc code again
+
+length <- master_long %>%
+  filter(measure == "length") %>%
+  # this length is not cropped, but is the missing data in test aka length
+  select(sapling.id, data, measure, sample.period)
+
+total.growth <- left_join(test, length, by = c("sample.period", "sapling.id"))
+## didnt work ##
+
+
+
+
+
+
 # Prism data attempt ----
 
 
