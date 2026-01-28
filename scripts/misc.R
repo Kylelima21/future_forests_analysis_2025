@@ -873,6 +873,21 @@ ggplot(sum.precip, aes(x = Year, y = annual, fill = Site)) +
 geom_bar(position='dodge', stat='identity')  +
   labs(y = "Annual precipitation")
 
+#_________________________________________________________________________
+# looking at the data we are interpreting
+
+seedlings.interp <- read_excel("data/seedlings.xlsx") %>%
+  mutate(
+    site = case_when(
+      str_detect(site.plot, "MDI") ~ "MDI",
+      str_detect(site.plot, "Surry") ~ "Surry",
+      str_detect(site.plot, "Belfast") ~ "Belfast",
+      str_detect(site.plot, "Schoodic") ~ "Schoodic"
+    )
+  ) %>%
+  select(!site.plot) %>%
+  group_by(site, species, tube) %>%
+  summarise(n = n())
 
 
 

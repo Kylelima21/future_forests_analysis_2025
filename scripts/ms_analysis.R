@@ -1,11 +1,14 @@
 #### Packages ####
+install.packages('installr')
 install.packages('DHARMa')
+library(installr)
 library(tidyverse)
 library(readxl)
 library(glmmTMB)
 library(DHARMa)
 library(emmeans)
 
+updateR()
 
 ## Read in old form of data
 ## Remove individuals that died early (can't rule out transplant shock)
