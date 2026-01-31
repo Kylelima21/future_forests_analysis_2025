@@ -276,19 +276,12 @@ surry <- surry %>%
 # STEP 5: COMBINE SITES
 master <- rbind(mdi, schoodic, belfast, surry)
 
-
-
 # ADD UNIQUEID, CLEAN SPECIES, TUBE, BROWSE ----
 
 # STEP 6: ADD A UNIQUE ID COLUMN
 
 master <- master %>% mutate(UniqueID = 1:n(), .before = Site)
 
-# are there any duplicates?
-doubles <- master %>%
-  count(UniqueID) %>%
-  filter(n > 1)
-#table(master$Species)
 #Note: Noticed there is r oak, r. oak, and r.oak. Fixed
 master <- master %>%
   mutate(Species = recode(Species, "r oak" = "r.oak")) %>%
@@ -303,7 +296,6 @@ master <- master %>%
 #Note: Numeric woes. Make sure the columns are compatible. Length should be numeric, 
 #browse should be character, at least for now
 
-#str(master)
 master_wide <- master %>%
   mutate_at(c('Length_summer2019', 'Length_fall2019', 'Length_summer2020', 
               'Length_fall2020', 'Length_summer2021', 'Length_fall2021',
@@ -312,10 +304,6 @@ master_wide <- master %>%
   mutate_at(c('Browse_summer2020', 'Browse_fall2020', 'Browse_summer2021', 'Browse_fall2021',
               'Browse_summer2022', 'Browse_fall2022', 'Browse_summer2023', 
               'Browse_fall2023', 'Browse_summer2024', 'Browse_fall2024'), as.character)
-
-doubles <- master_wide %>%
-  count(UniqueID) %>%
-  filter(n > 1)
 
 # DELETE THE NOT PLANTED SEEDLINGS ----
 #Found that they were not planted in the notes, and they never have any data
@@ -336,10 +324,6 @@ master_wide <- master_wide %>%
 # Added a LiveDead column for summer2019 so I can graph the different starting numbers of spp
   mutate(LiveDead_summer2019 = "L", .before = Length_fall2019)
 # remember that the filter will delete the NAs, so manually kept them in
-
-doubles <- master_wide %>%
-  count(UniqueID) %>%
-  filter(n > 1)
 
 #This is really where I start to differ from tidy markdown
 #Cleaning everything up now instead of later, so far tube is clean
@@ -372,10 +356,6 @@ master_wide <- master_wide %>%
   select(!starts_with("Live")) %>%
   left_join(cleanLiveDead, by = "UniqueID")
 
-doubles <- master_wide %>%
-  count(UniqueID) %>%
-  filter(n > 1)
-
 # CLEAN LENGTH ----
 
 # STEP 8: CLEAN LENGTH
@@ -407,10 +387,6 @@ master_wide <- rbind(alive19,dead19)
 master_wide <- master_wide %>%
   filter(UniqueID != 1382 & UniqueID != 808 & UniqueID != 11 & UniqueID != 1227)
 
-doubles <- master_wide %>%
-  count(UniqueID) %>%
-  filter(n > 1)
-
 # PLEASE NOTE I DID NOT DELETE ANY ZOMBIE SEEDLINGS
 
 # MAKING DATA LONG, COLUMNS NUMERIC ----
@@ -433,10 +409,6 @@ master_wide <- master_wide %>%
   select(!starts_with("Live")) %>%
   left_join(live_numeric, by = "UniqueID")
 
-doubles <- master_wide %>%
-  count(UniqueID) %>%
-  filter(n > 1)
-
 browse_numeric <- master_wide %>%
   #pulling out browse and making 1,0
   select(UniqueID, starts_with("Browse")) %>%
@@ -452,9 +424,6 @@ browse_numeric <- master_wide %>%
 master_wide <- master_wide %>%
   select(!starts_with("Browse")) %>%
   left_join(browse_numeric, by = "UniqueID")
-doubles <- master_wide %>%
-  count(UniqueID) %>%
-  filter(n > 1)
 
 # FINALIZE MASTER_WIDE; MISC SEEDLINGS, BAD TUBES, ZOMBIES ----
 
@@ -474,41 +443,81 @@ master_wide <- master_wide %>%
          sapling.id !=900 & sapling.id != 933 & sapling.id != 1067) 
 # the seedlings were marked as not having tubes, when in reality they do have tubes
 # looking at the seedlings with tube notes
-bad.tubes <- master_wide %>%
+#bad.tubes <- master_wide %>%
+#  select(!starts_with(c("Length", "Browse", "Live"))) %>%
+#  pivot_longer(
+#    cols = starts_with("Notes"),
+#    names_to = "Visit",
+#    values_to = "Notes") %>%
+#  filter(grepl("no tube", Notes) | grepl("tube fell", Notes) | grepl("tube broke", Notes) |
+#           grepl("tube tip", Notes) | grepl("uprooted by tube", Notes) |
+#           grepl("uprooted tube", Notes) | grepl("tube came off", Notes) |
+#           grepl("tube gone", Notes) | grepl("tube missing", Notes) |
+#           grepl("removed tube", Notes) | grepl("took tube away", Notes) |
+#           grepl("tube down", Notes) | grepl("tube removed", Notes) |
+#           grepl("outside tube", Notes) | grepl("tube was down", Notes) |
+#           grepl("no tube found", Notes) | grepl("tube fell over", Notes) |
+#           grepl("tube fallen over", Notes) | grepl("not tube", Notes) |
+#           grepl("tube fell off", Notes) | grepl("tube remove", Notes))
+
+#bad.tubes2 <- master_wide %>%
+#  select(!starts_with(c("Length", "Browse", "Live"))) %>%
+#  pivot_longer(
+#    cols = starts_with("Notes"),
+#    names_to = "Visit",
+#    values_to = "Notes") %>%
+#  filter(grepl("no tube", Notes) | grepl("tube fell", Notes) | grepl("tube broke", Notes) |
+#           grepl("tube tip", Notes) | grepl("uprooted by tube", Notes) |
+#           grepl("uprooted tube", Notes) | grepl("tube came off", Notes) |
+#          grepl("tube gone", Notes) | grepl("tube missing", Notes) |
+#           grepl("removed tube", Notes) | grepl("took tube away", Notes) |
+#           grepl("tube down", Notes) | grepl("tube removed", Notes) |
+#          grepl("outside tube", Notes) | grepl("tube was down", Notes) |
+#           grepl("no tube found", Notes) | grepl("tube fell over", Notes) |
+#           grepl("tube fallen over", Notes) | grepl("not tube", Notes) |
+#           grepl("tube fell off", Notes) | grepl("tube remove", Notes) | 
+#           grepl("in tube", Notes) | grepl("Tube remove", Notes))
+
+attempt3 <- master_wide %>%
   select(!starts_with(c("Length", "Browse", "Live"))) %>%
   pivot_longer(
     cols = starts_with("Notes"),
     names_to = "Visit",
     values_to = "Notes") %>%
-  filter(grepl("no tube", Notes) | grepl("tube fell", Notes) | grepl("tube broke", Notes) |
-           grepl("tube tip", Notes) | grepl("uprooted by tube", Notes) |
-           grepl("uprooted tube", Notes) | grepl("tube came off", Notes) |
-           grepl("tube gone", Notes) | grepl("tube missing", Notes) |
-           grepl("removed tube", Notes) | grepl("took tube away", Notes) |
-           grepl("tube down", Notes) | grepl("tube removed", Notes) |
-           grepl("outside tube", Notes) | grepl("tube was down", Notes) |
-           grepl("no tube found", Notes) | grepl("tube fell over", Notes) |
-           grepl("tube fallen over", Notes) | grepl("not tube", Notes) |
-           grepl("tube fell off", Notes) | grepl("tube remove", Notes))
-# below are the tubes incorrectly coded as not having tubes, need to make that a Y tube
-N.bad.tubes <- bad.tubes %>%
-  filter(tube == "N")
-# grabbing these sapling.id
-N.bad.tubes2 <- N.bad.tubes %>%
+  filter(grepl("tube", Notes)) %>%
+  filter(tube == "N") %>%
+  distinct(sapling.id, .keep_all = TRUE) %>%
   select(sapling.id) %>%
-  distinct(sapling.id, .keep_all = TRUE)
+  filter(sapling.id != 817)
+# The 817 note is that there is a tube stack on top of the seedling; no actual tube
+  
+# below are the tubes incorrectly coded as not having tubes, need to make that a Y tube
+#N.bad.tubes <- bad.tubes %>%
+#  filter(tube == "N")
 
-N.bad.tubes3 <- left_join(N.bad.tubes2, master_wide, by = "sapling.id") %>%
+#draft.N.bad.tubes <- bad.tubes2 %>%
+#  filter(tube == "N")
+# grabbing these sapling.id
+#N.bad.tubes2 <- N.bad.tubes %>%
+#  select(sapling.id) %>%
+#  distinct(sapling.id, .keep_all = TRUE)
+
+#draft.N.bad.tubes2 <- draft.N.bad.tubes %>%
+#  select(sapling.id) %>%
+#  distinct(sapling.id, .keep_all = TRUE)
+
+#diff.tubes <- anti_join(draft.N.bad.tubes2, N.bad.tubes2, by = "sapling.id")
+
+attempt4 <- left_join(attempt3, master_wide, by = "sapling.id") %>%
   mutate(tube = "Y")
 # deleting these from master_wide, so I can combine them back with corrected tube column
-master_wide <- anti_join(master_wide, N.bad.tubes2, by = "sapling.id")
+master_wide <- anti_join(master_wide, attempt3, by = "sapling.id")
 
 doubles <- master_wide %>%
   count(sapling.id) %>%
   filter(n > 1)
-
 #combining them back together again
-master_wide <- rbind(master_wide, N.bad.tubes3)
+master_wide <- rbind(master_wide, attempt4)
 
 doubles <- master_wide %>%
   count(sapling.id) %>%
@@ -829,9 +838,6 @@ finalformat <- master_wide %>%
     species == "r.oak" | species == "w.spruce" | species == "w.pine" ~ "local",
     species == "ch.oak" | species == "r.cedar" | species == "w.oak" ~ "maine"), .before = tube)
 
-doubles <- finalformat %>%
-  count(sapling.id) %>%
-  filter(n > 1)
 # ok now I need total.growth, max.growth, years.grown
 # the most important part of test is the sample period ans sapling id; at this point I just need length
 
@@ -940,20 +946,70 @@ finalformat <- finalformat %>%
 
 write_xlsx(finalformat, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\finalformat.xlsx')
 
+# LOOKING AT SITE INFO ----
+surry.prism <- read_excel("C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\Surry_PRISM.xlsx")
+mdi.prism <- read_excel("C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\MDI_PRISM.xlsx")
+belfast.prism <- read_excel("C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\Belfast_PRISM.xlsx")
+schoodic.prism <- read_excel("C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\Schoodic_PRISM.xlsx")
 
+surry.prism <- surry.prism %>%
+  mutate(Site = "Surry")
+mdi.prism <- mdi.prism %>%
+  mutate(Site = "MDI")
+belfast.prism <- belfast.prism %>%
+  mutate(Site = "Belfast")
+schoodic.prism <- schoodic.prism %>%
+  mutate(Site = "Schoodic")
 
+site.data <- rbind(surry.prism, mdi.prism, belfast.prism, schoodic.prism) %>%
+  rename(ppt = `ppt (inches)`) %>%
+  rename(tmin = `tmin (degrees F)`) %>%
+  rename(tmax = `tmax (degrees F)`) %>%
+  mutate(Year = case_when (
+    str_detect(Date, "2018") ~ "2018",
+    str_detect(Date, "2019") ~ "2019",
+    str_detect(Date, "2020") ~ "2020",
+    str_detect(Date, "2021") ~ "2021",
+    str_detect(Date, "2022") ~ "2022",
+    str_detect(Date, "2023") ~ "2023",
+    str_detect(Date, "2024") ~ "2024"
+  ))
+precip <- site.data %>%
+  select(Site, Year, ppt) %>%
+  filter(Year != 2018) %>%
+  group_by(Site, Year) %>%
+  summarise(total.precip = sum(ppt),
+            avg.precip = mean(ppt))
 
+winter.temp <- site.data %>%
+  filter(str_detect(Date, "-01-") | str_detect(Date, "-02-") | str_detect(Date, "-12-")) %>%
+  mutate(Season = case_when(
+    str_detect(Date, "-12-") & Year == 2018 ~ "Winter2019",
+    str_detect(Date, "-01-") & Year == 2019 ~ "Winter2019",
+    str_detect(Date, "-02-") & Year == 2019 ~ "Winter2019",
+    str_detect(Date, "-12-") & Year == 2019 ~ "Winter2020",
+    str_detect(Date, "-01-") & Year == 2020 ~ "Winter2020",
+    str_detect(Date, "-02-") & Year == 2020 ~ "Winter2020",
+    str_detect(Date, "-12-") & Year == 2020 ~ "Winter2021",
+    str_detect(Date, "-01-") & Year == 2021 ~ "Winter2021",
+    str_detect(Date, "-02-") & Year == 2021 ~ "Winter2021",
+    str_detect(Date, "-12-") & Year == 2021 ~ "Winter2022",
+    str_detect(Date, "-01-") & Year == 2022 ~ "Winter2022",
+    str_detect(Date, "-02-") & Year == 2022 ~ "Winter2022",
+    str_detect(Date, "-12-") & Year == 2022 ~ "Winter2023",
+    str_detect(Date, "-01-") & Year == 2023 ~ "Winter2023",
+    str_detect(Date, "-02-") & Year == 2023 ~ "Winter2023",
+    str_detect(Date, "-12-") & Year == 2023 ~ "Winter2024",
+    str_detect(Date, "-01-") & Year == 2024 ~ "Winter2024",
+    str_detect(Date, "-02-") & Year == 2024 ~ "Winter2024"
+  )) %>%
+  drop_na(Season) %>%
+  group_by(Site, Season) %>%
+  summarise(avg.min = mean(tmin))
 
-
-
-
-
-
-
-
-
-
-
-
+summer.temp <- site.data %>%
+  filter(str_detect(Date, "-06-") | str_detect(Date, "-07-") | str_detect(Date, "-08-")) %>%
+  group_by(Site, Year) %>%
+  summarise(avg.max = mean(tmax))
 
 

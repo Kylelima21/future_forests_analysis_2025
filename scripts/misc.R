@@ -684,12 +684,20 @@ length <- master_long %>%
 total.growth <- left_join(test, length, by = c("sample.period", "sapling.id"))
 ## didnt work ##
 
+master_wide <- read_excel("data/master_wide.xlsx")
+master_long <- read_excel("data/master_long.xlsx")
 
+bad.length <- master_long %>%
+  filter(measure == "length") %>%
+  filter(data == 0 | data == 0.0)
+# so seedlings 127, 188, 425
 
-
+bad.length2 <- master_wide %>%
+  filter(sapling.id == 127 | sapling.id == 188 | sapling.id == 425)
 
 
 # Prism data attempt ----
+
 
 
 
@@ -717,6 +725,7 @@ site.data <- rbind(surry.prism, mdi.prism, belfast.prism, schoodic.prism) %>%
   rename(tmin = `tmin (degrees F)`) %>%
   rename(tmax = `tmax (degrees F)`) %>%
   mutate(Year = case_when (
+    str_detect(Date, "2018") ~ "2018",
     str_detect(Date, "2019") ~ "2019",
     str_detect(Date, "2020") ~ "2020",
     str_detect(Date, "2021") ~ "2021",
@@ -725,13 +734,12 @@ site.data <- rbind(surry.prism, mdi.prism, belfast.prism, schoodic.prism) %>%
     str_detect(Date, "2024") ~ "2024"
   ))
   
-
-
 surry.prism <- surry.prism %>%
   rename(ppt = `ppt (inches)`) %>%
   rename(tmin = `tmin (degrees F)`) %>%
   rename(tmax = `tmax (degrees F)`) %>%
   mutate(Year = case_when (
+    str_detect(Date, "2018") ~ "2018",
     str_detect(Date, "2019") ~ "2019",
     str_detect(Date, "2020") ~ "2020",
     str_detect(Date, "2021") ~ "2021",
@@ -752,6 +760,7 @@ mdi.prism <- mdi.prism %>%
   rename(tmin = `tmin (degrees F)`) %>%
   rename(tmax = `tmax (degrees F)`) %>%
   mutate(Year = case_when (
+    str_detect(Date, "2018") ~ "2018",
     str_detect(Date, "2019") ~ "2019",
     str_detect(Date, "2020") ~ "2020",
     str_detect(Date, "2021") ~ "2021",
@@ -771,6 +780,7 @@ belfast.prism <- belfast.prism %>%
   rename(tmin = `tmin (degrees F)`) %>%
   rename(tmax = `tmax (degrees F)`) %>%
   mutate(Year = case_when (
+    str_detect(Date, "2018") ~ "2018",
     str_detect(Date, "2019") ~ "2019",
     str_detect(Date, "2020") ~ "2020",
     str_detect(Date, "2021") ~ "2021",
@@ -790,6 +800,7 @@ schoodic.prism <- schoodic.prism %>%
   rename(tmin = `tmin (degrees F)`) %>%
   rename(tmax = `tmax (degrees F)`) %>%
   mutate(Year = case_when (
+    str_detect(Date, "2018") ~ "2018",
     str_detect(Date, "2019") ~ "2019",
     str_detect(Date, "2020") ~ "2020",
     str_detect(Date, "2021") ~ "2021",
@@ -873,6 +884,58 @@ ggplot(sum.precip, aes(x = Year, y = annual, fill = Site)) +
 geom_bar(position='dodge', stat='identity')  +
   labs(y = "Annual precipitation")
 
+#_______________________________________________________________________
+#that way seems very long winded
+
+precip <- site.data %>%
+  select(Site, Year, ppt) %>%
+  filter(Year != 2018) %>%
+  group_by(Site, Year) %>%
+  summarise(total.precip = sum(ppt),
+            avg.precip = mean(ppt))
+
+seasonal.temp <- site.data %>%
+  filter(str_detect(Date, "-01-") | str_detect(Date, "-02-") | str_detect(Date, "-06-") |
+           str_detect(Date, "-07-") | str_detect(Date, "-08-") | str_detect(Date, "-12-")) %>%
+  mutate(Season = case_when(
+    str_detect(Date, "-01-") | str_detect(Date, "-02") | str_detect(Date, "12") ~ "Winter",
+    str_detect(Date, "-06") | str_detect(Date, "-07") | str_detect(Date, "-08") ~ "Summer"
+  )) #%>%
+#  select(Site, Year, Season, tmax, tmin) %>%
+#  group_by(Site, Year, Season) %>%
+#  summarise(max.temp = max(tmax),
+#            min.temp = min(tmin),
+#            avg.summer = mean(tmax),
+#            avg.winter = mean(tmin))
+
+# The issue is we need to pull the december befor ethe year, so takes another second
+winter.2019 <- seasonal.temp %>%
+  filter(str_detect(Date, "-12-"), Year == 2018 | str_detect(Date, "-01-"), Year == 2019)
+  
+winter.temp <- site.data %>%
+  filter(str_detect(Date, "-01-") | str_detect(Date, "-02-") | str_detect(Date, "-12-")) %>%
+  mutate(Season = case_when(
+    str_detect(Date, "-12-") & Year == 2018 ~ "Winter2019",
+    str_detect(Date, "-01-") & Year == 2019 ~ "Winter2019",
+    str_detect(Date, "-02-") & Year == 2019 ~ "Winter2019",
+    str_detect(Date, "-12-") & Year == 2019 ~ "Winter2020",
+    str_detect(Date, "-01-") & Year == 2020 ~ "Winter2020",
+    str_detect(Date, "-02-") & Year == 2020 ~ "Winter2020"
+    str_detect(Date, "-12-") & Year == 2020 ~ "Winter2021",
+    str_detect(Date, "-01-") & Year == 2021 ~ "Winter2021",
+    str_detect(Date, "-02-") & Year == 2021 ~ "Winter2021",
+    str_detect(Date, "-12-") & Year == 2021 ~ "Winter2022",
+    str_detect(Date, "-01-") & Year == 2022 ~ "Winter2022",
+    str_detect(Date, "-02-") & Year == 2022 ~ "Winter2022",
+    str_detect(Date, "-12-") & Year == 2022 ~ "Winter2023",
+    str_detect(Date, "-01-") & Year == 2023 ~ "Winter2023",
+    str_detect(Date, "-02-") & Year == 2023 ~ "Winter2023",
+    str_detect(Date, "-12-") & Year == 2023 ~ "Winter2024",
+    str_detect(Date, "-01-") & Year == 2024 ~ "Winter2024",
+    str_detect(Date, "-02-") & Year == 2024 ~ "Winter2024"
+    ))
+
+ 
 #_________________________________________________________________________
 # looking at the data we are interpreting
 
@@ -886,8 +949,9 @@ seedlings.interp <- read_excel("data/seedlings.xlsx") %>%
     )
   ) %>%
   select(!site.plot) %>%
-  group_by(site, species, tube) %>%
+  group_by(species) %>%
   summarise(n = n())
+
 
 
 
