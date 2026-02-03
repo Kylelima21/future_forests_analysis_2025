@@ -81,8 +81,7 @@ ggplot(s.df, aes(fill = tube, y = emmean, x = species)) +
   labs(x = "Species", y = "Growth Rate (cm/yr)") +
   theme_classic() +
   theme(strip.background =element_rect(fill="lightgray"),
-        panel.border = element_rect(color = "black", fill = NA, size = 1)) +
-  scale_y_continuous(limits =  c(-45,75))
+        panel.border = element_rect(color = "black", fill = NA, size = 1))
 
 ggplot(seedlings, aes(fill = tube, y = growth.rate, x = species)) +
   geom_bar(position='dodge', stat='identity') + facet_wrap(~ site) +
@@ -92,7 +91,25 @@ ggplot(seedlings, aes(fill = tube, y = growth.rate, x = species)) +
   labs(x = "Species", y = "Growth Rate (cm/yr)") +
   theme_classic() +
   theme(strip.background =element_rect(fill="lightgray"),
-        panel.border = element_rect(color = "black", fill = NA, size = 1)) +
-  scale_y_continuous(limits =  c(-45,75))
+        panel.border = element_rect(color = "black", fill = NA, size = 1)) #+
+#  scale_y_continuous(limits =  c(-45,75))
+
+seedling.draft <- seedlings %>%
+  group_by(site, tube, species) %>%
+  summarise(avg.growth.rate = mean(growth.rate),
+            sd = sd(growth.rate))
 
 
+ggplot(seedling.draft, aes(fill = tube, y = avg.growth.rate, x = species)) +
+  geom_bar(position='dodge', stat='identity') + facet_wrap(~ site) +
+  scale_x_discrete(guide = guide_axis(angle = 90), 
+                   labels = c("Chestnut oak", "Red cedar", "Red oak", "Sweet gum",
+                              "Tulip tree", "White oak", "White pine", "White spruce")) +
+  labs(x = "Species", y = "Growth Rate (cm/yr)") +
+  theme_classic() +
+  theme(strip.background =element_rect(fill="lightgray"),
+        panel.border = element_rect(color = "black", fill = NA, size = 1))
+
+seedling.count <- seedlings %>%
+  group_by(site, species) %>%
+  summarise(n = n())
