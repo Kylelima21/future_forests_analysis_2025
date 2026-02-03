@@ -78,20 +78,21 @@ ggplot(s.df, aes(fill = tube, y = emmean, x = species)) +
   scale_x_discrete(guide = guide_axis(angle = 90), 
                    labels = c("Chestnut oak", "Red cedar", "Red oak", "Sweet gum",
                               "Tulip tree", "White oak", "White pine", "White spruce")) +
-  labs(x = "Species", y = "Growth Rate (cm/yr)") +
+  labs(x = "Species", y = "Growth Rate (cm/yr)", title = "Model") +
   theme_classic() +
   theme(strip.background =element_rect(fill="lightgray"),
-        panel.border = element_rect(color = "black", fill = NA, size = 1))
+        panel.border = element_rect(color = "black", fill = NA, size = 1)) +
+  scale_fill_manual(values = c("#a6611a", "#018571"))
 
-ggplot(seedlings, aes(fill = tube, y = growth.rate, x = species)) +
-  geom_bar(position='dodge', stat='identity') + facet_wrap(~ site) +
-  scale_x_discrete(guide = guide_axis(angle = 90), 
-                   labels = c("Chestnut oak", "Red cedar", "Red oak", "Sweet gum",
-                              "Tulip tree", "White oak", "White pine", "White spruce")) +
-  labs(x = "Species", y = "Growth Rate (cm/yr)") +
-  theme_classic() +
-  theme(strip.background =element_rect(fill="lightgray"),
-        panel.border = element_rect(color = "black", fill = NA, size = 1)) #+
+#ggplot(seedlings, aes(fill = tube, y = growth.rate, x = species)) +
+#  geom_bar(position='dodge', stat='identity') + facet_wrap(~ site) +
+#  scale_x_discrete(guide = guide_axis(angle = 90), 
+#                   labels = c("Chestnut oak", "Red cedar", "Red oak", "Sweet gum",
+#                              "Tulip tree", "White oak", "White pine", "White spruce")) +
+#  labs(x = "Species", y = "Growth Rate (cm/yr)") +
+#  theme_classic() +
+#  theme(strip.background =element_rect(fill="lightgray"),
+#        panel.border = element_rect(color = "black", fill = NA, size = 1)) #+
 #  scale_y_continuous(limits =  c(-45,75))
 
 seedling.draft <- seedlings %>%
@@ -105,11 +106,32 @@ ggplot(seedling.draft, aes(fill = tube, y = avg.growth.rate, x = species)) +
   scale_x_discrete(guide = guide_axis(angle = 90), 
                    labels = c("Chestnut oak", "Red cedar", "Red oak", "Sweet gum",
                               "Tulip tree", "White oak", "White pine", "White spruce")) +
-  labs(x = "Species", y = "Growth Rate (cm/yr)") +
+  labs(x = "Species", y = "Growth Rate (cm/yr)", title = "Collected Data") +
   theme_classic() +
-  theme(strip.background =element_rect(fill="lightgray"),
-        panel.border = element_rect(color = "black", fill = NA, size = 1))
+  theme(strip.background = element_rect(fill="lightgray"),
+        panel.border = element_rect(color = "black", fill = NA, size = 1)) +
+  scale_fill_manual(values = c("#a6611a", "#018571")) +
+  geom_errorbar(aes(ymin = avg.growth.rate - sd, ymax = avg.growth.rate + sd), 
+                position = position_dodge(0.9), width = 0.2)
+
+# pt 2, ignoring that one error bar
+ggplot(seedling.draft, aes(fill = tube, y = avg.growth.rate, x = species)) +
+  geom_bar(position='dodge', stat='identity') + facet_wrap(~ site) +
+  scale_x_discrete(guide = guide_axis(angle = 90), 
+                   labels = c("Chestnut oak", "Red cedar", "Red oak", "Sweet gum",
+                              "Tulip tree", "White oak", "White pine", "White spruce")) +
+  labs(x = "Species", y = "Growth Rate (cm/yr)", title = "Collected Data") +
+  theme_classic() +
+  theme(strip.background = element_rect(fill="lightgray"),
+        panel.border = element_rect(color = "black", fill = NA, size = 1)) +
+  scale_fill_manual(values = c("#a6611a", "#018571")) +
+  geom_errorbar(aes(ymin = avg.growth.rate - sd, ymax = avg.growth.rate + sd), 
+                position = position_dodge(0.9), width = 0.2) +
+  scale_y_continuous(limits = c(-20, 20))
 
 seedling.count <- seedlings %>%
   group_by(site, species) %>%
   summarise(n = n())
+
+# white spruce sd is a lot. seems to be seedling 41 that is altering things
+master_wide <- read_excel("data/master_wide.xlsx")

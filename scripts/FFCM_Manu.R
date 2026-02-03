@@ -513,15 +513,8 @@ attempt4 <- left_join(attempt3, master_wide, by = "sapling.id") %>%
 # deleting these from master_wide, so I can combine them back with corrected tube column
 master_wide <- anti_join(master_wide, attempt3, by = "sapling.id")
 
-doubles <- master_wide %>%
-  count(sapling.id) %>%
-  filter(n > 1)
 #combining them back together again
 master_wide <- rbind(master_wide, attempt4)
-
-doubles <- master_wide %>%
-  count(sapling.id) %>%
-  filter(n > 1)
 
 # completed fixing the tube Y or N
 # So tubes are not finalized by this point. All we did was fix the incorrect columns
@@ -610,6 +603,7 @@ duplicate <- totalzombie %>%
   filter(n > 1) %>%
 # we decided to get rid of the seedlings that resurrected 2 or more times
   select(sapling.id)
+
 # 63 seedlings that we are getting rid of 
 # LOOK INTO THESE SEEDLINGS, SEE IF IT INTRODUCES BIAS IN THE DATA
 master_wide <- anti_join(master_wide, duplicate, by = "sapling.id")
@@ -762,7 +756,9 @@ growth.bad.tubes <- master_wide %>%
            grepl("outside tube", Notes) | grepl("tube was down", Notes) |
            grepl("no tube found", Notes) | grepl("tube fell over", Notes) |
            grepl("tube fallen over", Notes) | grepl("not tube", Notes) |
-           grepl("tube fell off", Notes) | grepl("tube remove", Notes)) %>%
+           grepl("tube fell off", Notes) | grepl("tube remove", Notes) | 
+           grepl("Tube remove", Notes) | grepl("TUBE REMOVE", Notes) | 
+           grepl("REMOVE TUBE", Notes)) %>%
   # Making the visits numerical so I can grab the first one easier
   mutate(
     sample.period = case_when(
@@ -909,14 +905,6 @@ max.height <- alive.draft %>%
 
 max.growth <- left_join(max.height, initial.length, by = "sapling.id")  
 
-# I got that warning about many-to-many relationships
-doubles <- max.growth %>%
-  count(sapling.id) %>%
-  filter(n > 1)
-# uh oh
-
-
-
 total.max.growth <- max.growth %>%
   mutate(max_growth = max_length - initial_length) %>%
   select(sapling.id, max_growth)
@@ -925,13 +913,8 @@ doubles <- total.max.growth %>%
   count(sapling.id) %>%
   filter(n > 1)
 
-
 # adding the growth from the intitial length to the maximum length
 finalformat <- left_join(finalformat, total.max.growth, by = "sapling.id") 
-
-doubles <- finalformat %>%
-  count(sapling.id) %>%
-  filter(n > 1)
 
 # cleaning columns
 
@@ -946,6 +929,20 @@ finalformat <- finalformat %>%
 
 write_xlsx(finalformat, 'C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\finalformat.xlsx')
 
+# final counts
+finalformat <- read_excel("data/finalformat.xlsx")
+
+final.counts <- finalformat %>%
+  mutate(site = case_when(
+    str_detect(site.plot, "MDI") ~ "MDI",
+    str_detect(site.plot, "Schoodic") ~ "Schoodic",
+    str_detect(site.plot, "Belfast") ~ "Belfast",
+    str_detect(site.plot, "Surry") ~ "Surry")) %>%
+  select(!site.plot) %>%
+  group_by(site, species, tube) %>%
+  summarise(n = n()) %>%
+  filter(tube == "Y")
+  
 # LOOKING AT SITE INFO ----
 surry.prism <- read_excel("C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\Surry_PRISM.xlsx")
 mdi.prism <- read_excel("C:\\Users\\jattanasio\\OneDrive - DOI\\Desktop\\R_related\\FFCM\\future_forests_analysis_2025\\data\\MDI_PRISM.xlsx")
@@ -1005,11 +1002,47 @@ winter.temp <- site.data %>%
   )) %>%
   drop_na(Season) %>%
   group_by(Site, Season) %>%
-  summarise(avg.min = mean(tmin))
+  summarise(avg.min = mean(tmin)) %>%
+  mutate(Year = case_when(
+    str_detect(Season, "2019") ~ "2019",
+    str_detect(Season, "2020") ~ "2020",
+    str_detect(Season, "2021") ~ "2021",
+    str_detect(Season, "2022") ~ "2022",
+    str_detect(Season, "2023") ~ "2023",
+    str_detect(Season, "2024") ~ "2024"
+  )) %>%
+  select(!Season)
 
 summer.temp <- site.data %>%
   filter(str_detect(Date, "-06-") | str_detect(Date, "-07-") | str_detect(Date, "-08-")) %>%
   group_by(Site, Year) %>%
   summarise(avg.max = mean(tmax))
 
+ggplot(precip, aes(x = Year, y = total.precip, group = Site, color = Site)) +
+  geom_line() +
+  geom_point(size = 2) +
+  theme_classic() +
+  scale_color_manual(values=c("#a6611a", "#dfc27d","#80cdc1", "#018571")) +
+  labs(y = "Total preceipitation")
 
+ggplot(winter.temp, aes(x = Year, y = avg.min, group = Site, color = Site)) +
+  geom_line() +
+  geom_point(size = 2) +
+  theme_classic() +
+  scale_color_manual(values=c("#a6611a", "#dfc27d","#80cdc1", "#018571")) +
+  labs(y = "Average winter temp (dec,jan,feb)")
+
+ggplot(summer.temp, aes(x = Year, y = avg.max, group = Site, color = Site)) +
+  geom_line() +
+  geom_point(size = 2) +
+  theme_classic() +
+  scale_color_manual(values=c("#a6611a", "#dfc27d","#80cdc1", "#018571")) +
+  labs(y = "Average summer temp (june,july,aug)")
+
+summer.temp2 <- summer.temp %>%
+  group_by(Site) %>%
+  summarise(avg = mean(avg.max))
+
+winter.temp2 <- winter.temp %>%
+  group_by(Site) %>%
+  summarise(avg = mean(avg.min))
