@@ -384,8 +384,30 @@ alive19 <- master_wide %>%
 #then combined
 master_wide <- rbind(alive19,dead19)
 #then took out the misc seedlings with bad lengths
+bad.summer20 <- master_wide %>%
+  filter(UniqueID == 343 | UniqueID == 1227) %>%
+  mutate(Length_summer2020 = NA)
+bad.fall20 <- master_wide %>%
+  filter(UniqueID == 11 | UniqueID == 41) %>%
+  mutate(Length_fall2020 = NA)
+bad.summer22 <- master_wide %>%
+  filter(UniqueID == 1382, UniqueID == 21) %>%
+  mutate(Length_summer2022 = NA)
+bad.fall22 <- master_wide %>%
+  filter(UniqueID == 808) %>%
+  mutate(Length_fall2022 = NA)
+bad.fall24 <- master_wide %>%
+  filter(UniqueID == 780) %>%
+  mutate(Length_fall2024 = NA)
+
 master_wide <- master_wide %>%
-  filter(UniqueID != 1382 & UniqueID != 808 & UniqueID != 11 & UniqueID != 1227)
+  filter(UniqueID != 343 & UniqueID != 1227 & UniqueID != 11 & UniqueID != 41 &
+           UniqueID != 1382 & UniqueID != 21 & UniqueID != 808 & UniqueID !=780)
+master_wide <- rbind(master_wide, bad.summer20)
+master_wide <- rbind(master_wide, bad.fall20)
+master_wide <- rbind(master_wide, bad.summer22)
+master_wide <- rbind(master_wide, bad.fall22)
+master_wide <- rbind(master_wide, bad.fall24)
 
 # PLEASE NOTE I DID NOT DELETE ANY ZOMBIE SEEDLINGS
 
@@ -443,40 +465,6 @@ master_wide <- master_wide %>%
          sapling.id !=900 & sapling.id != 933 & sapling.id != 1067) 
 # the seedlings were marked as not having tubes, when in reality they do have tubes
 # looking at the seedlings with tube notes
-#bad.tubes <- master_wide %>%
-#  select(!starts_with(c("Length", "Browse", "Live"))) %>%
-#  pivot_longer(
-#    cols = starts_with("Notes"),
-#    names_to = "Visit",
-#    values_to = "Notes") %>%
-#  filter(grepl("no tube", Notes) | grepl("tube fell", Notes) | grepl("tube broke", Notes) |
-#           grepl("tube tip", Notes) | grepl("uprooted by tube", Notes) |
-#           grepl("uprooted tube", Notes) | grepl("tube came off", Notes) |
-#           grepl("tube gone", Notes) | grepl("tube missing", Notes) |
-#           grepl("removed tube", Notes) | grepl("took tube away", Notes) |
-#           grepl("tube down", Notes) | grepl("tube removed", Notes) |
-#           grepl("outside tube", Notes) | grepl("tube was down", Notes) |
-#           grepl("no tube found", Notes) | grepl("tube fell over", Notes) |
-#           grepl("tube fallen over", Notes) | grepl("not tube", Notes) |
-#           grepl("tube fell off", Notes) | grepl("tube remove", Notes))
-
-#bad.tubes2 <- master_wide %>%
-#  select(!starts_with(c("Length", "Browse", "Live"))) %>%
-#  pivot_longer(
-#    cols = starts_with("Notes"),
-#    names_to = "Visit",
-#    values_to = "Notes") %>%
-#  filter(grepl("no tube", Notes) | grepl("tube fell", Notes) | grepl("tube broke", Notes) |
-#           grepl("tube tip", Notes) | grepl("uprooted by tube", Notes) |
-#           grepl("uprooted tube", Notes) | grepl("tube came off", Notes) |
-#          grepl("tube gone", Notes) | grepl("tube missing", Notes) |
-#           grepl("removed tube", Notes) | grepl("took tube away", Notes) |
-#           grepl("tube down", Notes) | grepl("tube removed", Notes) |
-#          grepl("outside tube", Notes) | grepl("tube was down", Notes) |
-#           grepl("no tube found", Notes) | grepl("tube fell over", Notes) |
-#           grepl("tube fallen over", Notes) | grepl("not tube", Notes) |
-#           grepl("tube fell off", Notes) | grepl("tube remove", Notes) | 
-#           grepl("in tube", Notes) | grepl("Tube remove", Notes))
 
 attempt3 <- master_wide %>%
   select(!starts_with(c("Length", "Browse", "Live"))) %>%
@@ -490,23 +478,6 @@ attempt3 <- master_wide %>%
   select(sapling.id) %>%
   filter(sapling.id != 817)
 # The 817 note is that there is a tube stack on top of the seedling; no actual tube
-  
-# below are the tubes incorrectly coded as not having tubes, need to make that a Y tube
-#N.bad.tubes <- bad.tubes %>%
-#  filter(tube == "N")
-
-#draft.N.bad.tubes <- bad.tubes2 %>%
-#  filter(tube == "N")
-# grabbing these sapling.id
-#N.bad.tubes2 <- N.bad.tubes %>%
-#  select(sapling.id) %>%
-#  distinct(sapling.id, .keep_all = TRUE)
-
-#draft.N.bad.tubes2 <- draft.N.bad.tubes %>%
-#  select(sapling.id) %>%
-#  distinct(sapling.id, .keep_all = TRUE)
-
-#diff.tubes <- anti_join(draft.N.bad.tubes2, N.bad.tubes2, by = "sapling.id")
 
 attempt4 <- left_join(attempt3, master_wide, by = "sapling.id") %>%
   mutate(tube = "Y")
