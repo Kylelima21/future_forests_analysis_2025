@@ -1017,3 +1017,49 @@ summer.temp2 <- summer.temp %>%
 winter.temp2 <- winter.temp %>%
   group_by(Site) %>%
   summarise(avg = mean(avg.min))
+
+precip2 <- precip %>%
+  group_by(Site) %>%
+  summarise(avg = mean(total.precip))
+#-------------------------------------------------------
+# Browse
+master_wide <- read_excel("data/master_wide.xlsx")
+# this is what we use in the model aka takes transplant shock into account
+seedlings <- read_excel("data/finalformat.xlsx") %>%
+  as_tibble() %>% 
+  filter(years.grown > 1) %>% 
+  mutate(site = str_extract(site.plot, "\\w\\w\\w"),
+         site = factor(site, levels = c("Bel", "Sur", "MDI", "Sch"), ordered = T),
+         growth.rate = total.growth/years.grown) %>% 
+  filter(!is.na(growth.rate))
+
+untubed.seedlings <- seedlings %>%
+  filter(tube == "N") %>%
+# also don't need to mess with any cropping, because that only occurred for tubes individuals
+  select("sapling.id")
+# so there are 668 total untubed seedlings
+
+browse <- left_join(untubed.seedlings, master_wide, by = "sapling.id") 
+
+untubed.seedlings.site <- browse %>%
+  group_by(site) %>%
+  summarise(n = n())
+
+browsed.seedlings <- browse %>%
+  select("sapling.id", "site", starts_with("Browse")) %>%
+  pivot_longer(
+    cols = starts_with("Browse"),
+    names_to = "visit",
+    values_to = "data") %>%
+  filter(data == 1) %>%
+  distinct(sapling.id, .keep_all = TRUE) %>%
+  group_by(site) %>%
+  summarise(n = n())
+
+sch <- browse %>%
+  select("sapling.id", "site", starts_with("Browse")) %>%
+  pivot_longer(
+    cols = starts_with("Browse"),
+    names_to = "visit",
+    values_to = "data") %>%
+  filter(site == "Schoodic")

@@ -127,7 +127,7 @@ seedling.count <- seedlings %>%
   summarise(n = n())
 
 
-#___________________
+#---------------------------------------------------------
 
 global.survive <- glmmTMB(alive2024 ~ species + tube + site + species:tube + species:site + tube:site +
                     (1 | site.plot), data = seedlings, family = binomial)
@@ -184,4 +184,13 @@ ggplot(s.df.survive, aes(fill = tube, y = prob,
   theme_classic() +
   theme(strip.background =element_rect(fill="lightgray"),
         panel.border = element_rect(color = "black", fill = NA, size = 1)) +
-  scale_fill_manual(values = c("#a6611a", "#018571"))
+  scale_fill_manual(values = c("#a6611a", "#018571")) +
+  geom_hline(yintercept = 0.5, linetype = 'dotted', size = 1)
+
+
+
+
+
+
+
+
